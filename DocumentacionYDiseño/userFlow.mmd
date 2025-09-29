@@ -1,0 +1,82 @@
+flowchart LR
+ subgraph s1["Pagina principal"]
+        pagina_principal(["Pagina principal"])
+        que_desea_hacer["¿Que desea hacer?"]
+        configuracion(["Configuracion"])
+  end
+ subgraph s2["Compra"]
+        venta_libre(["Productos de venta libre"])
+        receta(["Productos de venta bajo receta"])
+        ubicacion(["Ingresa ubicación"])
+        seleccionar(["Seleccionar productos"])
+        es_de_venta_libre["Es de venta libre?"]
+        escanear_validar_recetas(["Escanear y validar recetas"])
+        carrito(["Consultar carrito"])
+        farmacia(["Consultar farmacias cercanas 
+        (filtrar por obra social"])
+        pago(["Seleccionar medio de pago"])
+        confirmar_compra(["Confirmar compra"])
+        agregar_medio_pago(["Agregar medio de pago"])
+        recibir_productos(["Recibir productos"])
+        presentar_receta(["Presentar receta"])
+  end
+ subgraph s3["Inicio de sesión"]
+        inicio_de_sesion(["Inicio de sesion"])
+        cuenta_existente["¿Cuenta existente?"]
+        crear_cuenta(["Crear cuenta"])
+        ingreso(["Ingreso"])
+        ingreso_valido["¿Ingreso valido?"]
+  end
+
+%% Organización general
+    inicio_de_aplicacion(["Inicio de Aplicación"])
+    logueado(["Logueado?"])
+    inicio_de_aplicacion --> logueado
+    logueado -- No --> inicio_de_sesion
+    logueado -- Si --> pagina_principal
+
+    %% Pone en horizontal los subgraphs
+    s3 ~~~ s1 ~~~ s2
+
+    %% Pone en horizontal General
+    inicio_de_aplicacion ~~~ logueado ~~~ inicio_de_sesion
+    
+
+%% Organización de subgraph Inicio de Sesión
+    inicio_de_sesion --> cuenta_existente
+    cuenta_existente -- No --> crear_cuenta
+    crear_cuenta --> ingreso
+    cuenta_existente -- Si --> ingreso
+    ingreso --> ingreso_valido
+    ingreso_valido -- No --> ingreso
+    ingreso_valido -- Si --> pagina_principal
+    %% Lo pone horizontal
+    inicio_de_sesion ~~~ cuenta_existente ~~~ ingreso ~~~ ingreso_valido
+
+
+%% Organización de subgraph Página Principal
+    pagina_principal --> que_desea_hacer
+    que_desea_hacer --> ubicacion
+    que_desea_hacer --> configuracion
+    que_desea_hacer ~~~ ubicacion
+
+%% Organización de subgraph Compra
+    ubicacion --> seleccionar
+    seleccionar --> es_de_venta_libre
+    es_de_venta_libre -- Si --> venta_libre
+    es_de_venta_libre -- No --> receta
+    receta --> escanear_validar_recetas
+    venta_libre --> carrito
+    escanear_validar_recetas --> carrito
+    carrito --> farmacia
+    farmacia --> pago
+    pago -- tiene medio asociado ---> confirmar_compra
+    pago -- no tiene medio asociado ---> agregar_medio_pago
+    agregar_medio_pago --> confirmar_compra
+    confirmar_compra -- compró venta libre --> recibir_productos
+    confirmar_compra -- compró bajo receta --> presentar_receta
+    presentar_receta --> recibir_productos
+
+    %% Pone en horizontal los nodos de Compra
+    ubicacion ~~~ venta_libre ~~~ receta ~~~ seleccionar ~~~ escanear_validar_recetas ~~~ carrito ~~~ farmacia ~~~ pago ~~~ confirmar_compra ~~~ recibir_productos
+  
