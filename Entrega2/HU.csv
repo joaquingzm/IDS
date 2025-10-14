@@ -1,0 +1,180 @@
+Card ID,Card Name,Card URL,Card Description,Labels,Members,Due Date,Attachment Count,Attachment Links,Checklist Item Total Count,Checklist Item Completed Count,Vote Count,Comment Count,Last Activity Date,List ID,List Name,Board ID,Board Name,Archived,Start Date,Due Complete,Due Reminder
+68dae941cb5599864be42e90,Historias de Usuarios,https://trello.com/c/E75sFWI7/1-historias-de-usuarios,"'- Id de la historia:
+- Título:
+- Reglas a considerar:
+- Criterios de aceptación:",Gestion de usuarios (green_dark),,,0,,0,0,0,0,2025-09-29T20:29:00.694Z,68dae8bd90793b2b9d486a31,Lista de tarea,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68daece25be1bf647d8ebeb3,Ingresar a la aplicación.,https://trello.com/c/KnTbPBbC/3-ingresar-a-la-aplicaci%C3%B3n,"'- Id de la historia: Ingresar a la aplicación.
+- Título: Como usuario en la aplicación quiero acceder a la página principal.
+- Reglas a considerar: – - - -","Gestion de usuarios (green_dark), Historia de Usuario (blue)",,,0,,3,0,0,0,2025-10-14T02:39:24.850Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68daf957982748a8122bd4a4,Registrarse en la aplicación,https://trello.com/c/yKTxQWre/6-registrarse-en-la-aplicaci%C3%B3n,"'- Id de la historia: Registrarse en la aplicación.
+- Título: Como usuario no registrado quiero registrarme en la aplicación para usarla.
+- Reglas a considerar: El mail debe ser único.
+  ```
+  El DNI debe ser único.
+
+  El número de obra social debe ser único.
+
+  El usuario debe ser mayor de edad.
+
+  Solamente se puede tener una bora social registrada en la aplicacion a la vez
+  ```","Gestion de usuarios (green_dark), Historia de Usuario (blue)",,,0,,5,0,0,0,2025-10-14T00:16:02.610Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68ec1751208aa629a2fc837e,Cambiar obra social,https://trello.com/c/TLXgf0I5/29-cambiar-obra-social,"'- Id de la historia: Cambiar obra social.
+- Título: Como usuario en la aplicación quiero cambiar mi obra social.
+- Reglas a considerar:
+  - La foto de la obra social debe ser de formato JPG o PNG.
+  - El Nro de afiliado debe ser unico en el sistema.","Gestion de usuarios (green_dark), Historia de Usuario (blue)",,,0,,3,0,0,0,2025-10-12T21:18:20.213Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68ec17a16b2069cd4e17d6f5,Cambiar de contraseña,https://trello.com/c/PTdeaXHs/30-cambiar-de-contrase%C3%B1a,"'- Id de la historia: Cambiar contrseña.
+- Título: Como usuario en la aplicación quiero cambiar mi contraseña.
+- Reglas a considerar:
+  - El cambio de contraseña es ajeno a la aplicacion.","Gestion de usuarios (green_dark), Historia de Usuario (blue)",,,0,,1,0,0,0,2025-10-12T21:20:18.974Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68ed447366cce935a998e4bb,Olvide mi contraseña,https://trello.com/c/slqwhqvz/39-olvide-mi-contrase%C3%B1a,"'- Id de la historia: Olvide mi contraseña contrseña.
+- Título: Como usuario en la aplicación quiero recuperar mi contraseña para poder acceder a la aplicacion.
+- Reglas a considerar:
+  - El cambio de contraseña es ajeno a la aplicacion.","Gestion de usuarios (green_dark), Historia de Usuario (blue)",,,0,,1,0,0,0,2025-10-13T18:29:51.705Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68ebdb647e5f92581c0a9b0a,Elegir de cupones de descuento,https://trello.com/c/0utEnmBb/26-elegir-de-cupones-de-descuento,"'- Id de la historia: Elegir de cupones de descuento
+- Título: Como usuario quiero acceder a cupones de descuento
+- Reglas a considerar;
+  - Solo se puede seleccionar uno a la vez.","Compra (red), Historia de Usuario (blue)",,,0,,2,0,0,0,2025-10-12T20:57:23.739Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68daefa9f95d7d252afbf23f,Cargar receta.,https://trello.com/c/8aJnwXKj/4-cargar-receta,"'- Id de la historia: Cargar receta.
+- Título: Como usuario logeado en la aplicación quiero poder cargar mi receta usando la cámara.
+- Reglas a considerar:
+  - El acceso a la cámara del dispositivo debe estar disponible.","Compra (red), Historia de Usuario (blue)",,,0,,3,0,0,0,2025-10-12T20:33:38.995Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68e96d1b0186820c97091589,Encargar un producto de venta libre,https://trello.com/c/RfMcBYti/18-encargar-un-producto-de-venta-libre,"'- Id de la historia: Elegir un producto de venta libre
+- Título: Como usuario logeado en la aplicación quiero poder elegir un producto de venta libre para comprarlo.
+- Reglas a considerar:","Compra (red), Historia de Usuario (blue)",,,0,,4,0,0,0,2025-10-12T20:37:00.277Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68e98782bc4d22f3f6aed76a,Crear un pedido libre (CAMBIAR),https://trello.com/c/3sVFukZx/23-crear-un-pedido-libre-cambiar,"'- Id de la historia: Crear un pedido libre.
+- Título: Como usuario logeado en la aplicación quiero crear mi pedido para poder hacer un pedido de productos.
+- Reglas a considerar:
+  - Debe tener por lo menos un producto en el carrito","Compra (red), Historia de Usuario (blue)",,,0,,3,0,0,0,2025-10-14T01:38:56.113Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68e43841a2e05eb2b90e257a,Confirmar datos con receta.,https://trello.com/c/dAq58nLF/7-confirmar-datos-con-receta,"'- Id de la historia: Confirmar datos de compra al escanear la receta.
+- Título: Como usuario logeado en la aplicación quiero confirmar mis datos luego de terminar de hacer mi pedido con receta para enviarselo a las farmacias.
+- Reglas a considerar:
+  - Previamente a esta accion se tuvo que haber escaneado la receta con la camara del celular.","Compra (red), Historia de Usuario (blue)",,,0,,2,0,0,0,2025-10-14T00:11:36.170Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68e43ef6f0e2d41912479f78,Confirmar datos sin receta.,https://trello.com/c/uBHyYAVj/8-confirmar-datos-sin-receta,"'- Id de la historia: Confirmar datos de compra libre.
+- Título: Como usuario logeado en la aplicación quiero confirmar mis datos luego de terminar de hacer mi pedido para enviarselo a las farmacias.
+- Reglas a considerar:
+  - Previamente se tuvo que hacer un carrito con los medicamentos deseados.","Compra (red), Historia de Usuario (blue)",,,0,,2,0,0,0,2025-10-14T00:10:28.989Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68e9762e0390f07492bf46c0,Elegir farmacia,https://trello.com/c/egTphlfG/20-elegir-farmacia,"'- Id de la historia: Seleccionar farmacia para enviarme el pedido.
+- Título: Como usuario logeado en la aplicación quiero poder elegir una farmacia para poder obtener mi pedido.
+- Reglas a considerar:","Compra (red), Historia de Usuario (blue)",,,0,,2,0,0,0,2025-10-12T20:34:00.706Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68ed41443d214beb582328ad,Pagar con obra social,https://trello.com/c/jvRJStA9/36-pagar-con-obra-social,"'- Id de la historia: Pagar el pedido con obra social.
+- Título: Como usuario logeado en la aplicación quiero poder pagar a través de Mercado Pago mi pedido  con obra social para que me envien los productos.
+- Reglas a considerar:
+  - El pago a través de Mercado Pago se considera ajeno a la aplicación.
+  - El pago debe ser solo posible con Mercado Pago.","Compra (red), Historia de Usuario (blue)",,,0,,2,0,0,0,2025-10-13T18:15:15.172Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68daf2c3dd40fb1b098d4475,Pagar,https://trello.com/c/oYNug4l1/5-pagar,"'- Id de la historia: Pagar el pedido.
+- Título: Como usuario logeado en la aplicación quiero poder pagar a través de Mercado Pago mi pedido para que me envien los productos.
+- Reglas a considerar:
+  - El pago a través de Mercado Pago se considera ajeno a la aplicación.
+  - El pago debe ser solo posible con Mercado Pago.","Compra (red), Historia de Usuario (blue)",,,0,,2,0,0,0,2025-10-13T18:15:39.525Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68ec1cef08c0770ff841ad6c,Cancelar pedido,https://trello.com/c/IO2S3X6E/34-cancelar-pedido,"'- Id de la historia: Cancelar pedido
+- Título: Como usuario quiero cancelar un pedido
+- Reglas a considerar:","Compra (red), Historia de Usuario (blue)",,,0,,1,0,0,0,2025-10-12T21:49:15.818Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68ed41e619f196287c489448,Volver a pedir,https://trello.com/c/FzkCP3jA/37-volver-a-pedir,"'- Id de la historia: Volver a pedir un pedido antiguo.
+- Título: Como usuario logeado quiero volver a pedir  un pedido que hice en el pasado.
+- Reglas a considerar:","Compra (red), Historia de Usuario (blue)",,,0,,1,0,0,0,2025-10-13T18:19:20.070Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68e43fb0270fd800055c01a2,Mostrar historial de pedidos,https://trello.com/c/AboTkBOP/9-mostrar-historial-de-pedidos,"'- Id de la historia: Historial de pedidos.
+- Título: Como usuario logeado quiero visualizar las compras que hice en la aplicación.
+- Reglas a considerar:
+  -  No se muestran intentos de pedidos en los que la receta fue rechazada.","Historia de Usuario (blue), Historial (green)",,,0,,1,0,0,0,2025-10-12T22:00:19.526Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68e44518e4f88d86b18764c3,Ver la información de un pedido del historial,https://trello.com/c/3bBQEPPO/12-ver-la-informaci%C3%B3n-de-un-pedido-del-historial,"'- Id de la historia: Mostrar información de un pedido antiguo.
+- Título: Como usuario logeado quiero acceder a la información de un pedido que hice en el pasado.
+- Reglas a considerar:
+  - Solo puede acceder a la información de un pedido a la vez.","Historia de Usuario (blue), Historial (green)",,,0,,1,0,0,0,2025-10-14T01:38:27.282Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68ed42b53823286fbbfcd8d9,Volver al historial,https://trello.com/c/cL4halke/38-volver-al-historial,"'- Id de la historia: Volver al historial del pedido.
+- Título: Como usuario logeado volver al historial de pedidos para poder ver otros pedidos anteriores.
+- Reglas a considerar:
+  - ","Historia de Usuario (blue), Historial (green)",,,0,,1,0,0,0,2025-10-13T18:22:03.474Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68e44346b406942c080dc08d,Ir a la pagina principal.,https://trello.com/c/lBJG9FbY/10-ir-a-la-pagina-principal,"'- Id de la historia: Redirigir a la pagina principal.
+- Título: Como usuario logeado en la aplicación quiero redirigirme a la pagina principal.
+- Reglas a considerar:---","Historia de Usuario (blue), Redireccion (yellow)",,,0,,1,0,0,0,2025-10-06T23:19:51.104Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68e4463eea6bdab96cac48b2,Ir a la pagina de busqueda.,https://trello.com/c/cdIbBu1k/13-ir-a-la-pagina-de-busqueda,"'- Id de la historia: Redirigir a la pagina de busqueda de pedidos.
+- Título: Como usuario logeado en la aplicación quiero redirigirme a la pagina principal.
+- Reglas a considerar:--","Historia de Usuario (blue), Redireccion (yellow)",,,0,,1,0,0,0,2025-10-10T21:03:06.823Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68e4468af95856ff31590e25,Ir a la pagina de pedidos,https://trello.com/c/TbbTGWWX/14-ir-a-la-pagina-de-pedidos,"'- Id de la historia: Redirigir a la pagina de pedidos.
+- Título: Como usuario logeado en la aplicación quiero redirigirme a la pagina de pedidos.
+- Reglas a considerar:---","Historia de Usuario (blue), Redireccion (yellow)",,,0,,1,0,0,0,2025-10-10T21:03:13.618Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68e446f2f7a13128c3c69703,Ir a la pagina de perfil,https://trello.com/c/wRfMqCcq/15-ir-a-la-pagina-de-perfil,"'- Id de la historia: Redirigir a la pagina de perfil.
+- Título: Como usuario logeado en la aplicación quiero redirigirme a la pagina de configuracion.
+- Reglas a considerar:----","Historia de Usuario (blue), Redireccion (yellow)",,,0,,1,0,0,0,2025-10-10T21:03:20.151Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68e98687e3434129ef5d7517,Ir al carrito de compras,https://trello.com/c/Mg88bWLy/22-ir-al-carrito-de-compras,"'- Id de la historia: Redirigir al carrito
+- Título: Como usuario logeado en la aplicación quiero redirigirme a mi carrito de compras.
+- Reglas a considerar:----","Historia de Usuario (blue), Redireccion (yellow)",,,0,,1,0,0,0,2025-10-12T20:37:15.266Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68ec17d229a94de621c4ec74,Cerrar sesion,https://trello.com/c/Jh0DUlIx/31-cerrar-sesion,"'- Id de la historia: Cerrar sesion.
+- Título: Como usuario logeado en la aplicación quiero cerrar la sesion actual.
+- Reglas a considerar:----","Historia de Usuario (blue), Redireccion (yellow)",,,0,,1,0,0,0,2025-10-12T21:05:51.923Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68ec22acd66689a30e5baa72,Contactar farmacia,https://trello.com/c/cOg1sRrt/35-contactar-farmacia,"'- Id de la historia: Contactar farmacia
+- Título: Como usuario quiero comunicarme con la farmacia para hacer consultas
+- Reglas a considerar:
+  - No hay comunicación mediante la aplicación.","Historia de Usuario (blue), Redireccion (yellow)",,,0,,1,0,0,0,2025-10-12T21:53:45.809Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68e44b9c38e0e3d5a608c844,Ajustar tamaño de la fuente,https://trello.com/c/rEXLUVLL/16-ajustar-tama%C3%B1o-de-la-fuente,"Id de la historia: Ajustar tamaño de fuente
+
+- Título: Como usuario logeado quiero cambiar el tamaño de la fuente de la aplicacion para poder ver mejor.
+- Reglas a considerar:
+  - ","Configuracion (purple), Historia de Usuario (blue)",,,0,,1,0,0,0,2025-10-10T21:03:52.319Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68e44d301f1edfa6faface02,Aumento de contraste,https://trello.com/c/Wd8EsVij/17-aumento-de-contraste,"Id de la historia: Aumentar el contraste de la aplicacion.
+
+- Título: Como usuario logeado quiero cambiar el constraste de la aplicacion para poder ver mejor.
+- Reglas a considerar:
+  - ","Configuracion (purple), Historia de Usuario (blue)",,,0,,1,0,0,0,2025-10-10T21:03:43.402Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68ec1bbf463937e6af112a37,Habilitar no guardar credenciales.,https://trello.com/c/Tun5AlVN/32-habilitar-no-guardar-credenciales,"Id de la historia: Habilitar la opcion de no guardar credenciales.
+
+- Título: Como usuario logeado quiero habilitar que la aplicacion no guarde credenciales para poder tener mayor seguridad.
+- Reglas a considerar:
+  \-","Configuracion (purple), Historia de Usuario (blue)",,,0,,1,0,0,0,2025-10-12T21:24:02.723Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68ec1c4e01072966b34f6e51,Habilitar Autenticacion biometrica,https://trello.com/c/0hDNd0uB/33-habilitar-autenticacion-biometrica,"Id de la historia: Habilitar la autenticacion biometrica.
+
+- Título: Como usuario logeado quiero habilitar la entrada de la aplicacion con autenticaion biometrica para poder tener mayor seguridad y facilidad a la hora de abrir la aplicacion.
+- Reglas a considerar:
+  \-","Configuracion (purple), Historia de Usuario (blue)",,,0,,1,0,0,0,2025-10-12T21:25:58.442Z,68dae8bd90793b2b9d486a32,En proceso,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68eda44988d7c54a56236cd8,Registrarse en la web,https://trello.com/c/dqAk5HOp/40-registrarse-en-la-web,"'- Id de la historia: Registrarse en la aplicación.
+- Título: Como usuario no registrado quiero registrarme en la aplicación para usarla.
+- Reglas a considerar:
+  - El CUIL debe ser único.
+  - El domicilio comercial debe ser único.
+  - Se requiere del numero de habilitación sanitaria.
+  - Matricula del farmacéutico debe ser única.
+  - La cuenta bancaria debe ser única.","Farmacia (orange_dark), Gestion de usuarios (green_dark), Historia de Usuario (blue)",,,0,,6,0,0,0,2025-10-14T02:12:23.707Z,68eda2896847f0cd544146b0,Farmacia,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68eda455ebb0eaecd19daf14,Ingresar a la pagina web,https://trello.com/c/g2qQ0Oaz/41-ingresar-a-la-pagina-web,"'- Id de la historia: Ingresar a la aplicación.
+- Título: Como usuario en la aplicación quiero acceder a la página principal.
+- Reglas a considerar: – - - -","Farmacia (orange_dark), Gestion de usuarios (green_dark), Historia de Usuario (blue)",,,0,,3,0,0,0,2025-10-14T02:12:10.817Z,68eda2896847f0cd544146b0,Farmacia,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68eda479c819e52938a528d5,Contestar pedido pendiente,https://trello.com/c/WU2xtlU1/42-contestar-pedido-pendiente,"'- Id de la historia: Contestar un pedido pendiente.
+- Título: Como usuario logeado en la web quiero  responder a un pedido de  un usuario para poder ofertar.
+- Reglas a considerar: – - - -","Farmacia (orange_dark), Historia de Usuario (blue), Pedido (orange)",,,0,,1,0,0,0,2025-10-14T02:17:02.394Z,68eda2896847f0cd544146b0,Farmacia,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68eda48163c28355a81a9c93,Ofertar por el pedido,https://trello.com/c/YQW8Iq2l/43-ofertar-por-el-pedido,"'- Id de la historia: Ofertar por el pedido.
+- Título: Como usuario logeado en la web quiero darle una oferta de precio y tiempo al  pedido de  un usuario.
+- Reglas a considerar: – - - -","Farmacia (orange_dark), Historia de Usuario (blue), Pedido (orange)",,,0,,2,0,0,0,2025-10-14T02:20:16.191Z,68eda2896847f0cd544146b0,Farmacia,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68eda4e19d2ab79ee0c15664,Confirmar pedido,https://trello.com/c/DToWy0sq/44-confirmar-pedido,"'- Id de la historia: Confirmar el pedido.
+- Título: Como usuario logeado en la web quiero  confirmar el pedido el cual el usario acepto mi oferta para poder enviarselo.
+- Reglas a considerar: – - - -","Farmacia (orange_dark), Historia de Usuario (blue), Pedido (orange)",,,0,,1,0,0,0,2025-10-14T02:26:12.297Z,68eda2896847f0cd544146b0,Farmacia,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68eda4e9e1a376459dc2a2de,Cambiar estado de pedido,https://trello.com/c/cbb7mTMA/45-cambiar-estado-de-pedido,"'- Id de la historia: Cambiar estado de pedido.
+- Título: Como usuario logeado en la web quiero cambiar el estado en el cual esta el pedido para poder informar al comprador.
+- Reglas a considerar: – - - -","Farmacia (orange_dark), Historia de Usuario (blue), Pedido (orange)",,,0,,3,0,0,0,2025-10-14T02:31:56.698Z,68eda2896847f0cd544146b0,Farmacia,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68eda505959447cbe0705242,Visualizar pedido antiguo,https://trello.com/c/A0hFplXt/47-visualizar-pedido-antiguo,"'- Id de la historia: Mostrar información de una oferta antigua.
+- Título: Como usuario logeado quiero acceder a la información de una oferta que hice en el pasado.
+- Reglas a considerar:
+  - Solo puede acceder a la información de un pedido a la vez.","Farmacia (orange_dark), Historia de Usuario (blue), Historial (green)",,,0,,1,0,0,0,2025-10-14T01:42:34.649Z,68eda2896847f0cd544146b0,Farmacia,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68edaa9427110d16f77c3b03,Volver al historial,https://trello.com/c/f8vC5rEm/53-volver-al-historial,"'- Id de la historia: Volver al historial de ofertas.
+- Título: Como usuario logeado volver al historial de ofertas para poder ver otra ofertas anteriores.
+- Reglas a considerar:
+  \-","Farmacia (orange_dark), Historia de Usuario (blue), Historial (green), Redireccion (yellow)",,,0,,1,0,0,0,2025-10-14T02:39:17.658Z,68eda2896847f0cd544146b0,Farmacia,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68eda6292f77d8e35184e474,Cerrar Sesion,https://trello.com/c/PCoQF9Ut/48-cerrar-sesion,"'- Id de la historia: Cerrar sesion.
+- Título: Como usuario logeado en la web quiero cerrar la sesion actual.
+- Reglas a considerar:----","Farmacia (orange_dark), Historia de Usuario (blue), Redireccion (yellow)",,,0,,1,0,0,0,2025-10-14T01:29:21.779Z,68eda2896847f0cd544146b0,Farmacia,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68eda63b6cff93f0b40c2277,Ir a pagina principal,https://trello.com/c/C4rnzpQJ/49-ir-a-pagina-principal,"'- Id de la historia: Redirigir a la pagina principal.
+- Título: Como usuario logeado en la web quiero redirigirme a la pagina principal.
+- Reglas a considerar:---","Farmacia (orange_dark), Historia de Usuario (blue), Redireccion (yellow)",,,0,,1,0,0,0,2025-10-14T01:30:21.270Z,68eda2896847f0cd544146b0,Farmacia,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68eda64fc349c8134cf6701d,Ir a pagina de historial,https://trello.com/c/41h9Xk8S/50-ir-a-pagina-de-historial,"'- Id de la historia: Redirigir a la pagina de historial.
+- Título: Como usuario logeado en la web quiero redirigirme a la pagina de historial de ofertas.
+- Reglas a considerar:
+  - Solo apareceran las ofertas aceptadas","Farmacia (orange_dark), Historia de Usuario (blue), Redireccion (yellow)",,,0,,1,0,0,0,2025-10-14T01:33:10.272Z,68eda2896847f0cd544146b0,Farmacia,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68eda687796f4ade309cb31b,Ir a pagina de ofertas actuales,https://trello.com/c/tBEgiHHP/51-ir-a-pagina-de-ofertas-actuales,"'- Id de la historia: Redirigir a la pagina de ofertas actuales.
+- Título: Como usuario logeado en la web quiero redirigirme a la pagina de ofertas actuales.
+- Reglas a considerar:
+  - ","Farmacia (orange_dark), Historia de Usuario (blue), Redireccion (yellow)",,,0,,1,0,0,0,2025-10-14T01:36:08.870Z,68eda2896847f0cd544146b0,Farmacia,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68edb646a84ce486dea2d848,Ir a pedidos aceptados,https://trello.com/c/DeQqgvph/54-ir-a-pedidos-aceptados,"'- Id de la historia: Ir a pedidos aceptados.
+- Título: Como usuario logeado en la web ingresar a la pagina de las ofertas que mis comrpadores me aceptaron para poder inciar el envio.
+- Reglas a considerar:---","Farmacia (orange_dark), Historia de Usuario (blue), Pedido (orange), Redireccion (yellow)",,,0,,1,0,0,0,2025-10-14T02:39:08.145Z,68eda2896847f0cd544146b0,Farmacia,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
+68edb64f7d60d4fc360eee02,Entrar en un pedido vigente,https://trello.com/c/KDHWibR2/55-entrar-en-un-pedido-vigente,"'- Id de la historia: Entrar a un pedido vigente.
+- Título: Como usuario logeado en la web ingresar a un pedido vigente en este momento para poder cambiar el estado.
+- Reglas a considerar:---","Farmacia (orange_dark), Historia de Usuario (blue), Pedido (orange), Redireccion (yellow)",,,0,,1,0,0,0,2025-10-14T02:39:12.500Z,68eda2896847f0cd544146b0,Farmacia,68dae8bd90793b2b9d4869f4,RappiFarma,false,,false,
