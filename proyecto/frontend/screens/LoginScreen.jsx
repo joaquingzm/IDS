@@ -3,18 +3,18 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from "reac
 import { AuthContext } from "../context/AuthContext";
 import { theme } from "../styles/theme";
 import Logo from "../assets/LogoRappiFarma.png";
-import { Link } from "expo-router";
-import useNav from "../hooks/UseNavigation";
+//import { Link } from "expo-router";
+//import useNav from "../hooks/UseNavigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
 
-export default function LoginScreen() {
+export default function LoginScreen({navigation}) {
   const { login } = useContext(AuthContext);
 
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { goHome } = useNav();
+  //const { goHome } = useNav();
 
   function handleLogin() {
    // Llamamos a Firebase
@@ -23,7 +23,8 @@ export default function LoginScreen() {
       // Login exitoso
       const user = userCredential.user;
       console.log("Usuario logueado:", user.uid);
-      goHome(); // ir a Home
+      //goHome(); // ir a Home
+      navigation.replace('MainAppTabs');
     })
     .catch((error) => {
       console.log("Error al iniciar sesión:", error.message);
