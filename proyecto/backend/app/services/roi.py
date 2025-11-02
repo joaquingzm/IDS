@@ -1,19 +1,49 @@
 import cv2
 import os
 import numpy as np
+from PIL import Image
 from paddleocr import PaddleOCR
-from services.roi_img import roi_img
-from services.order_points import order_points
 
-#   roi_detection: se detectan regiones de interes de una imagen y se guardan en imagenes individuales;
+def order_points(pts):
+    #   order_points: ordena 4 puntos en el orden: [tl, tr, br, bl]
 
-#   img_name: nombre de la imagen a procesar;
-#   img_extension: extension de la imagen a procesar;
-#   wants_img: indica si debe crear una copia de la imagen original pero con las regiones graficadas;
+    #   pts: lista de 4 puntos a ordenar;
 
-#   imgs: lista de crops;
+    #   rect: lista de 4 puntos ordenados;
+
+    ordered_points = np.zeros((4, 2), dtype="float32")
+    s = pts.sum(axis=1)
+    ordered_points[0] = pts[np.argmin(s)]
+    ordered_points[2] = pts[np.argmax(s)]
+    diff = np.diff(pts, axis=1).reshape(4,)
+    ordered_points[1] = pts[np.argmin(diff)]
+    ordered_points[3] = pts[np.argmax(diff)]
+
+    return ordered_points
+
+def roi_img (img, polys, directory_name):
+    #   roi_img: guardar imagen con los poligonos graficados;
+
+    #   img: imagen a editar;
+    #   polys: lista de poligonos a graficar;
+    #   directory_name: nombre del directorio donde se guardara la imagen editada;
+
+    #   aux_img: imagen editada;
+    aux_img = img.copy()
+    for poly in polys:
+        pts_draw = np.array(poly, dtype=np.int32).reshape((-1,1,2))
+        cv2.polylines(aux_img, [pts_draw], isClosed=True, color=(0,255,0), thickness=1)
+    cv2.imwrite(os.path.join(directory_name, "roi_boxes.png"), aux_img)
+    return aux_img
 
 def roi_detection(img_name, img_extension, wants_img):
+    #   roi_detection: se detectan regiones de interes de una imagen y se guardan en imagenes individuales;
+
+    #   img_name: nombre de la imagen a procesar;
+    #   img_extension: extension de la imagen a procesar;
+    #   wants_img: indica si debe crear una copia de la imagen original pero con las regiones graficadas;
+
+    #   imgs: lista de crops;
     
 #   se inicia al OCR y trabaja sobre la imagen;
     ocr = PaddleOCR(lang='en')
@@ -24,17 +54,22 @@ def roi_detection(img_name, img_extension, wants_img):
     img_for_cropping = result[0].get('doc_preprocessor_res', {})['output_img']
 
 #   se crea directorio donde se guardaran los crops;
-    directory_name = 'crops_' + img_name
-    os.makedirs(directory_name, exist_ok=True)
+    directory_name = ''
+    if wants_img :
+        directory_name = 'crops_' + img_name
+        os.makedirs(directory_name, exist_ok=True)
 
     imgs = []
 
+    print("PADDLEOCR:")
 #   procesamos cada poligono;
     for i, (text, score, poly) in enumerate(zip(
             result[0]['rec_texts'],
             result[0]['rec_scores'],
             result[0]['rec_polys']
         )):
+
+        print(f"Texto {i}: {text}, score: {score}")
 
 #       numpy necesita el formato float32 (4,2);
         pts = np.array(poly, dtype=np.float32)
@@ -70,9 +105,11 @@ def roi_detection(img_name, img_extension, wants_img):
         recorte = padded
 
 #       se guarda imagen cropeada;
-        ruta = os.path.join(directory_name, f"crop_{i}.png")
-        cv2.imwrite(ruta, recorte)
-        imgs.append(recorte)
+        if wants_img :
+            ruta = os.path.join(directory_name, f"crop_{i}.png")
+            cv2.imwrite(ruta, recorte)
+        pil_image = Image.fromarray(cv2.cvtColor(recorte, cv2.COLOR_BGR2RGB))
+        imgs.append(pil_image)
 
 #   se guarda una imagen con los rectangulos graficados;
     if wants_img : roi_img(img_for_cropping,result[0]['rec_polys'],directory_name)

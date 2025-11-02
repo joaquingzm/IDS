@@ -88,7 +88,7 @@ def infer_trOCR(pil_image):
 
 
 
-img_path = "blas3_linea2.jpeg"
+img_path = "../images/blas3_linea2.jpeg"
 
 img = cv2.imread(img_path)
 
@@ -99,6 +99,15 @@ cv2.imshow("binary", binary)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 """
+
+"""
+img_path = "./crops_receta1/crop_11.png"
+img = cv2.imread(img_path)
+print(infer_trOCR(img))
+"""
+
+
+
 
 def proyeccionHorizontal(binary):
     
