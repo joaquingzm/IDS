@@ -1,0 +1,6 @@
+Comandos que me olvido jijijiji
+
+source venv/bin/activate
+deactivate
+jupyter nbconvert --to notebook .py --output .ipynb
+jupyter nbconvert --to python .ipynb
