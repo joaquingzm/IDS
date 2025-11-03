@@ -10,4 +10,5 @@ export const CAMPOS_USUARIO = {
   FECHA_REGISTRO: "fechaRegistro",
   OBRASOCIAL: "Obra Social",
   DNI: "DNI",
+  DIRECCION: "Direccion",
 };
