@@ -4,14 +4,14 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity, View, StyleSheet } from 'react-native';
 import { openCameraAndTakePhoto } from '../utils/cameraUtils';
+import { theme } from '../styles/theme';  
 
-// Importá tus pantallas
+// Import de las  pantallas
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
 import SearchScreen from '../screens/SearchScreen'; 
 import OfertsScreen from '../screens/OfertsScreen';     
-import ProfileScreen from '../screens/ProfileScreen'; 
-import { theme } from '../styles/theme';        
+import ProfileScreen from '../screens/ProfileScreen';        
 import RegisterScreen from '../screens/RegisterScreen';
 
 const Stack = createNativeStackNavigator();
