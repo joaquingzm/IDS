@@ -11,7 +11,7 @@ export default function PedidoCard() {
 
 
     // Esto es un ejemplo para que se pueda ver con un pedido posta
-    /*
+    
     setTimeout(() => {
       setPedido({
         id: "1234",
@@ -20,7 +20,7 @@ export default function PedidoCard() {
         estado: "En camino"
       });
     }, 1000);
-    */
+    
   }, []);
 
   return (
