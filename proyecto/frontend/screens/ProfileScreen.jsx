@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { theme } from '../styles/theme'; // Opcional, si querés usar tus estilos
+import { theme } from '../styles/theme'; 
 
 export default function ProfileScreen() {
   return (
@@ -15,11 +15,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.background, // O un color
+    backgroundColor: theme.colors.background,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: theme.colors.foreground, // O un color
+    color: theme.colors.foreground, 
   },
 });

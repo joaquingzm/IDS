@@ -1,6 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'; // 1. Importá el Tab Navigator
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'; 
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity, View, StyleSheet } from 'react-native';
 import { openCameraAndTakePhoto } from '../utils/cameraUtils';
@@ -8,20 +8,21 @@ import { openCameraAndTakePhoto } from '../utils/cameraUtils';
 // Importá tus pantallas
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
-import SearchScreen from '../screens/SearchScreen'; // Asegurate de crear este archivo
-import CartScreen from '../screens/CartScreen';     // Asegurate de crear este archivo
-import ProfileScreen from '../screens/ProfileScreen'; // Asegurate de crear este archivo
-import { theme } from '../styles/theme';         // Importá tus colores
+import SearchScreen from '../screens/SearchScreen'; 
+import OfertsScreen from '../screens/OfertsScreen';     
+import ProfileScreen from '../screens/ProfileScreen'; 
+import { theme } from '../styles/theme';        
+import RegisterScreen from '../screens/RegisterScreen';
 
 const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator(); // 2. Creá el Tab Navigator
+const Tab = createBottomTabNavigator(); 
 
-// Función vacía para la pestaña central
+
 function PlaceholderScreen() {
   return <View />;
 }
 
-// Función para el botón central personalizado (igual que antes)
+
 function CustomTabBarButton({ children, onPress }) {
   return (
     <TouchableOpacity
@@ -35,13 +36,11 @@ function CustomTabBarButton({ children, onPress }) {
   );
 }
 
-// 3. CREÁ UN COMPONENTE PARA LAS PESTAÑAS (dentro del mismo archivo)
+
 function MainTabs() {
-  // Función para manejar la cámara (deberías tenerla aquí o importarla)
   const handleCameraPress = async () => {
     console.log("Abrir cámara...");
     const uri = await openCameraAndTakePhoto();
-    // if (uri) console.log(uri);
   };
 
   return (
@@ -54,28 +53,26 @@ function MainTabs() {
         tabBarStyle: styles.tabBar,
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
-          // Ajusta los nombres de las rutas si los cambias abajo
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Search') {
             iconName = focused ? 'search' : 'search-outline';
-          } else if (route.name === 'Cart') {
-            iconName = focused ? 'cart' : 'cart-outline';
+          } else if (route.name === 'Oferts') {
+            iconName = focused ? 'cube' : 'cube-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
 
-          if (route.name === 'CameraPlaceholder') return null; // No mostramos ícono para el botón central
+          if (route.name === 'CameraPlaceholder') return null;
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
       })}
     >
-      {/* Definí tus pestañas */}
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen
-        name="CameraPlaceholder" // Pestaña "falsa" para el botón
+        name="CameraPlaceholder" 
         component={PlaceholderScreen}
         options={{
           tabBarButton: (props) => (
@@ -85,13 +82,12 @@ function MainTabs() {
           ),
         }}
       />
-      <Tab.Screen name="Cart" component={CartScreen} />
+      <Tab.Screen name="Oferts" component={OfertsScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
 
-// 4. TU NAVEGADOR PRINCIPAL (STACK) AHORA USA EL COMPONENTE DE PESTAÑAS
 export default function AppNavigator() {
   return (
     <Stack.Navigator
@@ -99,13 +95,13 @@ export default function AppNavigator() {
       screenOptions={{ headerShown: false }}
     >
       <Stack.Screen name="Login" component={LoginScreen} />
-      {/* Después del Login, vas al componente que contiene las pestañas */}
+      <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="MainAppTabs" component={MainTabs} />
     </Stack.Navigator>
   );
 }
 
-// 5. ESTILOS PARA LA BARRA (igual que antes)
+
 const styles = StyleSheet.create({
   tabBar: {
     position: 'absolute',

@@ -6,6 +6,7 @@ export default function useNav() {
   // funciones predefinidas
   const goHome = () => navigation.replace("Home");
   const goLogin = () => navigation.replace("Login");
-
-  return { navigation, goHome, goLogin };
+  const goRegister = () => navigation.replace("Register");
+  
+  return { navigation, goHome, goLogin, goRegister };
 }

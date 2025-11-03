@@ -3,8 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from "reac
 import { AuthContext } from "../context/AuthContext";
 import { theme } from "../styles/theme";
 import Logo from "../assets/LogoRappiFarma.png";
-//import { Link } from "expo-router";
-//import useNav from "../hooks/UseNavigation";
+import useNav from "../hooks/UseNavigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
 
@@ -14,7 +13,7 @@ export default function LoginScreen({navigation}) {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  //const { goHome } = useNav();
+  const { goRegister } = useNav();
 
   function handleLogin() {
    // Llamamos a Firebase
@@ -23,7 +22,6 @@ export default function LoginScreen({navigation}) {
       // Login exitoso
       const user = userCredential.user;
       console.log("Usuario logueado:", user.uid);
-      //goHome(); // ir a Home
       navigation.replace('MainAppTabs');
     })
     .catch((error) => {
@@ -64,7 +62,7 @@ export default function LoginScreen({navigation}) {
     </View>
     <View>
       
-      <TouchableOpacity>
+      <TouchableOpacity onPress={goRegister}>
         <Text style={styles.registerText}>Crear cuenta</Text>
       </TouchableOpacity>
     </View>
@@ -131,13 +129,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 3, // para Android
+    elevation: 3, 
   },
   card: {
     backgroundColor: theme.colors.Background,
     borderRadius: theme.borderRadius.sm,
     padding: theme.spacing.xl,
     shadows:theme.shadows.sm,
-    elevation: 3, // para Android
+    elevation: 3, 
   },
 });

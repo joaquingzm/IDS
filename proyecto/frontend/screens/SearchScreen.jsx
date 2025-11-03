@@ -1,19 +1,19 @@
-import React, { useState } from 'react'; // 1. Importá useState
-import { View, Text, StyleSheet, TextInput, SafeAreaView } from 'react-native'; // 2. Importá TextInput y SafeAreaView
+import React, { useState } from 'react'; 
+import { View, Text, StyleSheet, TextInput, SafeAreaView } from 'react-native'; 
 import { theme } from '../styles/theme';
-import { Ionicons } from '@expo/vector-icons'; // Para el ícono de búsqueda (opcional)
+import { Ionicons } from '@expo/vector-icons'; 
 
 export default function SearchScreen() {
-  // 3. Creá un estado para guardar lo que el usuario escribe
+  
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
-    // SafeAreaView para evitar el notch/barra de estado
+    
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <Text style={styles.title}>Buscar productos sin receta</Text>
 
-        {/* 4. Agregá el TextInput */}
+
         <View style={styles.inputContainer}>
           <Ionicons
             name="search"
@@ -25,16 +25,14 @@ export default function SearchScreen() {
             style={styles.input}
             placeholder="Escribe el nombre del medicamento..."
             placeholderTextColor={theme.colors.mutedForeground}
-            value={searchQuery} // Conecta el valor al estado
-            onChangeText={setSearchQuery} // Actualiza el estado al escribir
-            autoFocus={true} // Opcional: abre el teclado automáticamente al entrar
-            returnKeyType="search" // Cambia el botón "Enter" por "Buscar"
-            onSubmitEditing={() => console.log("Buscando:", searchQuery)} // Acción al presionar "Buscar"
+            value={searchQuery} 
+            onChangeText={setSearchQuery} 
+            autoFocus={true} 
+            returnKeyType="search" 
+            onSubmitEditing={() => console.log("Buscando:", searchQuery)} 
           />
         </View>
 
-        {/* Aquí podrías mostrar los resultados de la búsqueda */}
-        {/* <Text>Resultados para: {searchQuery}</Text> */}
       </View>
     </SafeAreaView>
   );
@@ -47,8 +45,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    // justifyContent: 'center', // Ya no centramos todo
-    //alignItems: 'center', // Ya no centramos todo
     padding: theme.spacing.md,
   },
   title: {
