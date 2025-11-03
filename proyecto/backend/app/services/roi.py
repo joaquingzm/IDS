@@ -47,7 +47,7 @@ def roi_detection(img_name, img_extension, wants_img):
     
 #   se inicia al OCR y trabaja sobre la imagen;
     ocr = PaddleOCR(lang='en')
-    img_path = os.path.join('images', img_name + img_extension)
+    img_path = os.path.join('resources', img_name + img_extension)
     result = ocr.predict(img_path)
 
 #   imagen preprocesada que usa el OCR;
