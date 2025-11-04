@@ -13,6 +13,7 @@ import SearchScreen from '../screens/SearchScreen';
 import OfertsScreen from '../screens/OfertsScreen';     
 import ProfileScreen from '../screens/ProfileScreen';        
 import RegisterScreen from '../screens/RegisterScreen';
+import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator(); 
@@ -95,6 +96,7 @@ export default function AppNavigator() {
       screenOptions={{ headerShown: false }}
     >
       <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="MainAppTabs" component={MainTabs} />
     </Stack.Navigator>

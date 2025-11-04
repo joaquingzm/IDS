@@ -1,19 +1,20 @@
 import React, { useState, useContext } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from "react-native";
-//import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../context/AuthContext.js";
 import { theme } from "../styles/theme";
 import Logo from "../assets/LogoRappiFarma.png";
 import useNav from "../hooks/UseNavigation";
-//import { signInWithEmailAndPassword } from "firebase/auth";
-//import { auth } from "../firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebase";
 
 export default function LoginScreen({navigation}) {
- /* const { login } = useContext(AuthContext);
+  const { login } = useContext(AuthContext);
 
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { goRegister } = useNav();
+  const { goMain } = useNav();
 
   function handleLogin() {
    // Llamamos a Firebase
@@ -22,7 +23,8 @@ export default function LoginScreen({navigation}) {
       // Login exitoso
       const user = userCredential.user;
       console.log("Usuario logueado:", user.uid);
-      navigation.replace('MainAppTabs');
+      //navigation.replace('MainAppTabs');
+      navigation.replace('Main');
     })
     .catch((error) => {
       console.log("Error al iniciar sesión:", error.message);
@@ -30,7 +32,7 @@ export default function LoginScreen({navigation}) {
     });
 
   }
-*/
+
   return (
     <View style={styles.container}>
       <Image source={Logo} style={styles.img} />

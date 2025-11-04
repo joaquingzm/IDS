@@ -1,36 +1,34 @@
 import React, { useState, useContext } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from "react-native";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../context/AuthContext.js";
 import { theme } from "../styles/theme";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
-import { COLECCION_USUARIOS, CAMPOS_USUARIO } from "../dbConfig";
+import { COLECCION_FARMACIAS, CAMPOS_FARMACIA } from "../dbConfig";
 import useNav from "../hooks/UseNavigation";
 
 export default function RegisterScreen({navigation}) {
   const [nombre, setNombre] = useState("");
-  const [apellido, setApellido] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [dni, setDni] = useState("");
-  const [obraSocial, setObraSocial] = useState("");
   const [direccion, setDireccion] = useState("");
+  const [telefono, setTelefono] = useState("");
   const { goLogin } = useNav();
   const handleRegister = async() => {
     try{
         const UserCredential = await createUserWithEmailAndPassword(auth,email,password);
         const user = UserCredential.user;
 
-        await setDoc(doc(db, COLECCION_USUARIOS,user.uid),{
-        [CAMPOS_USUARIO.EMAIL]: email,
-        [CAMPOS_USUARIO.NOMBRE]: nombre,
-        [CAMPOS_USUARIO.APELLIDO]: apellido,
-        [CAMPOS_USUARIO.DNI]: dni,
-        [CAMPOS_USUARIO.OBRASOCIAL]: obraSocial || "",
-        [CAMPOS_USUARIO.ROL]: "cliente",
-        [CAMPOS_USUARIO.FECHA_REGISTRO]: new Date(),
-        [CAMPOS_USUARIO.DIRECCION]: direccion,
+        await new Promise(res => setTimeout(res, 500));
+
+        await setDoc(doc(db, COLECCION_FARMACIAS,user.uid),{
+        [CAMPOS_FARMACIA.EMAIL]: email,
+        [CAMPOS_FARMACIA.NOMBRE]: nombre,
+        [CAMPOS_FARMACIA.TELEFONO]: telefono,
+        [CAMPOS_FARMACIA.ROL]: "Farmacia",
+        [CAMPOS_FARMACIA.FECHA_REGISTRO]: new Date(),
+        [CAMPOS_FARMACIA.DIRECCION]: direccion,
        });
 
      console.log("Usuario registrado:", user.uid);
@@ -62,11 +60,11 @@ export default function RegisterScreen({navigation}) {
 
            <TextInput
         style={styles.input}
-        placeholder="Apellido"
+        placeholder="Direccion"
         placeholderTextColor={theme.colors.mutedForeground}
         autoCapitalize="none"
-        value={apellido}
-        onChangeText={setApellido}
+        value={direccion}
+        onChangeText={setDireccion}
       />
 
          <TextInput
@@ -91,33 +89,14 @@ export default function RegisterScreen({navigation}) {
 
        <TextInput
         style={styles.input}
-        placeholder="DNI"
+        placeholder="Telefono"
         placeholderTextColor={theme.colors.mutedForeground}
         autoCapitalize="none"
         keyboardType="numeric"
-        value={dni}
-        onChangeText={setDni}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Obra Social (Opcional)"
-        placeholderTextColor={theme.colors.mutedForeground}
-        autoCapitalize="none"
-        value={obraSocial}
-        onChangeText={setObraSocial}
+        value={telefono}
+        onChangeText={setTelefono}
       />
       
-           <TextInput
-        style={styles.input}
-        placeholder="Direccion"
-        placeholderTextColor={theme.colors.mutedForeground}
-        autoCapitalize="none"
-        value={direccion}
-        onChangeText={setDireccion}
-      />
-
-
       <TouchableOpacity style={styles.button} onPress={handleRegister}>
         <Text style={styles.buttonText}>Registrarse</Text>
       </TouchableOpacity>
