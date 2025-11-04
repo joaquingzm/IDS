@@ -60,6 +60,7 @@ def roi_detection(img_name, img_extension, wants_img):
         os.makedirs(directory_name, exist_ok=True)
 
     imgs = []
+    textos = ""
 
     print("PADDLEOCR:")
 #   procesamos cada poligono;
@@ -70,6 +71,8 @@ def roi_detection(img_name, img_extension, wants_img):
         )):
 
         print(f"Texto {i}: {text}, score: {score}")
+
+        textos = textos + " " + text
 
 #       numpy necesita el formato float32 (4,2);
         pts = np.array(poly, dtype=np.float32)
@@ -115,4 +118,5 @@ def roi_detection(img_name, img_extension, wants_img):
     if wants_img : roi_img(img_for_cropping,result[0]['rec_polys'],directory_name)
 
 #   se devuelve array de crops;
-    return imgs
+    #return imgs
+    return textos
