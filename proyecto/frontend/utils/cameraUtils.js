@@ -1,22 +1,37 @@
 import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
 
 export async function openCameraAndTakePhoto() {
-  const { status } = await ImagePicker.requestCameraPermissionsAsync();
-  if (status !== 'granted') {
-    alert('Se necesitan permisos de cámara para continuar.');
-    return null;
-  }
+  try {
+    // 1. Permisos (solo en móvil)
+    if (Platform.OS !== 'web') {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Se necesitan permisos de cámara');
+        return null;
+      }
+    }
 
-  const result = await ImagePicker.launchCameraAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: false,
-    aspect: [4, 3],
-    quality: 0.8,
-  });
+    // 2. Tomar foto
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.8,
+    });
 
-  if (!result.canceled) {
-    return result.assets[0].uri;
-  } else {
+    // 3. Validar resultado
+    if (result.canceled || !result.assets || result.assets.length === 0) {
+      return null;
+    }
+
+    const uri = result.assets[0].uri;
+
+    console.log('URI de foto (para usar en app):', uri);
+    return uri;
+
+  } catch (error) {
+    console.error('Error al tomar foto:', error);
+    alert('No se pudo tomar la foto');
     return null;
   }
 }

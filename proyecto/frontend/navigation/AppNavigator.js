@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'; 
 import { Ionicons } from '@expo/vector-icons';
-import { TouchableOpacity, View, StyleSheet } from 'react-native';
+import { TouchableOpacity, View, StyleSheet, Image, Alert, Platform } from 'react-native';
 import { openCameraAndTakePhoto } from '../utils/cameraUtils';
 import { theme } from '../styles/theme';  
 
@@ -39,54 +39,102 @@ function CustomTabBarButton({ children, onPress }) {
 
 
 function MainTabs() {
+  const [photoUri, setPhotoUri] = useState(null);
   const handleCameraPress = async () => {
     console.log("Abrir cámara...");
     const uri = await openCameraAndTakePhoto();
-  };
+    if (uri) {      
+      //setPhotoUri(uri); Para que se vea abajo a la derecha, no hace falta;
+      // ENVIAR AL BACKEND
+      try {
+        const formData = new FormData();
 
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarShowLabel: false,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.mutedForeground,
-        tabBarStyle: styles.tabBar,
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-          if (route.name === 'Home') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Search') {
-            iconName = focused ? 'search' : 'search-outline';
-          } else if (route.name === 'Oferts') {
-            iconName = focused ? 'cube' : 'cube-outline';
-          } else if (route.name === 'Profile') {
-            iconName = focused ? 'person' : 'person-outline';
-          }
+        // IMPORTANTE: Formato según plataforma
+        let fileType = { type: 'image/jpeg' };
 
-          if (route.name === 'CameraPlaceholder') return null;
+        if (Platform.OS === 'web') {
+          // En web: convertir blob a File
+          const response = await fetch(uri);
+          const blob = await response.blob();
+          formData.append('file', blob, `photo_${Date.now()}.jpg`);
+        } else {
+          // En móvil: usar uri local
+          formData.append('file', {
+            uri,
+            name: 'photo_${Date.now()}.jpg',
+            type: 'image/jpeg',
+          });
+        }
 
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-      })}
-    >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Search" component={SearchScreen} />
-      <Tab.Screen
-        name="CameraPlaceholder" 
-        component={PlaceholderScreen}
-        options={{
-          tabBarButton: (props) => (
-            <CustomTabBarButton {...props} onPress={handleCameraPress}>
-              <Ionicons name="camera" size={28} color={theme.colors.background} />
-            </CustomTabBarButton>
-          ),
-        }}
-      />
-      <Tab.Screen name="Oferts" component={OfertsScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
-    </Tab.Navigator>
-  );
+        // ENVIAR
+        const res = await fetch('http://10.0.2.15:8000/ocr', {//IP LOCAL DE LA MAQUINA
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+        console.log('Respuesta del backend:', data);
+
+        if (data.resultado) {
+          Alert.alert('Éxito', data.resultado);//RESULTADO DEL OCR!!, JSON HAY QUE VER COMO USARLO
+        }
+      } catch (error) {
+        console.error('Error enviando imagen:', error);
+        Alert.alert('Error', 'No se pudo procesar la imagen');
+      }
+  }
+};
+
+  return (<View style={styles.container}>
+      {/* TU TAB NAVIGATOR (sin cambios) */}
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          tabBarShowLabel: false,
+          tabBarActiveTintColor: theme.colors.primary,
+          tabBarInactiveTintColor: theme.colors.mutedForeground,
+          tabBarStyle: styles.tabBar,
+          tabBarIcon: ({ focused, color, size }) => {
+            let iconName;
+            if (route.name === 'Home') {
+              iconName = focused ? 'home' : 'home-outline';
+            } else if (route.name === 'Search') {
+              iconName = focused ? 'search' : 'search-outline';
+            } else if (route.name === 'Oferts') {
+              iconName = focused ? 'cube' : 'cube-outline';
+            } else if (route.name === 'Profile') {
+              iconName = focused ? 'person' : 'person-outline';
+            }
+            if (route.name === 'CameraPlaceholder') return null;
+            return <Ionicons name={iconName} size={size} color={color} />;
+          },
+        })}
+      >
+        <Tab.Screen name="Home" component={HomeScreen} />
+        <Tab.Screen name="Search" component={SearchScreen} />
+        <Tab.Screen
+          name="CameraPlaceholder"
+          component={PlaceholderScreen}
+          options={{
+            tabBarButton: (props) => (
+              <CustomTabBarButton {...props} onPress={handleCameraPress}>
+                <Ionicons name="camera" size={28} color={theme.colors.background} />
+              </CustomTabBarButton>
+            ),
+          }}
+        />
+        <Tab.Screen name="Oferts" component={OfertsScreen} />
+        <Tab.Screen name="Profile" component={ProfileScreen} />
+      </Tab.Navigator>
+
+      {/* IMAGEN FLOTANTE: ABAJO A LA DERECHA */}
+      {photoUri && (
+        <Image
+          source={{ uri: photoUri }}
+          style={styles.floatingThumbnail}
+        />
+      )}
+    </View>);
 }
 
 export default function AppNavigator() {
@@ -131,5 +179,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
+  },
+  floatingThumbnail: { //Todo esto es para que se vea la imagen abajo a la derecha, no hace falta pero esta piola
+    position: 'absolute',
+    bottom: 90,           // Arriba del tab bar (ajusta si tu tab bar es alto)
+    right: 20,
+    width: 70,
+    height: 70,
+    borderRadius: 12,
+    borderWidth: 3,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 8,
+    zIndex: 1000,         // Asegura que esté encima
+  },
+  container: {
+    flex: 1,
+    position: 'relative', // Necesario para que absolute funcione
   },
 });
