@@ -4,7 +4,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity, View, StyleSheet, Image, Alert, Platform } from 'react-native';
 import { openCameraAndTakePhoto } from '../utils/cameraUtils';
-import { theme } from '../styles/theme';  
+import { theme } from '../styles/theme';
+import { COLECCION_PEDIDO_FARMACIA, CAMPOS_PEDIDO_FARMACIA } from "../dbConfig";
+import { COLECCION_USUARIOS, CAMPOS_USUARIO } from "../dbConfig";
+import { db, auth } from "../firebase";
+import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";  
 
 // Import de las  pantallas
 import LoginScreen from '../screens/LoginScreen';
@@ -14,6 +18,7 @@ import OfertsScreen from '../screens/OfertsScreen';
 import ProfileScreen from '../screens/ProfileScreen';        
 import RegisterScreen from '../screens/RegisterScreen';
 import OrderHistoryScreen from '../screens/OrderHistoryScreen';
+import OfertsPendingScreen from '../screens/OfertsPendingScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator(); 
@@ -41,52 +46,90 @@ function CustomTabBarButton({ children, onPress }) {
 function MainTabs() {
   const [photoUri, setPhotoUri] = useState(null);
   const handleCameraPress = async () => {
-    console.log("Abrir cámara...");
-    const uri = await openCameraAndTakePhoto();
-    if (uri) {      
-      //setPhotoUri(uri); Para que se vea abajo a la derecha, no hace falta;
-      // ENVIAR AL BACKEND
+  console.log("Abrir cámara...");
+  const uri = await openCameraAndTakePhoto();
+  if (uri) {      
+    //setPhotoUri(uri); Para que se vea abajo a la derecha, no hace falta;
+    // ENVIAR AL BACKEND
+    try {
+      const formData = new FormData();
+
+      // IMPORTANTE: Formato según plataforma
+      let fileType = { type: 'image/jpeg' };
+
+      if (Platform.OS === 'web') {
+        // En web: convertir blob a File
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        formData.append('file', blob, `photo_${Date.now()}.jpg`);
+      } else {
+        // En móvil: usar uri local
+        formData.append('file', {
+          uri,
+          name: 'photo_${Date.now()}.jpg',
+          type: 'image/jpeg',
+        });
+      }
+
+      // ENVIAR
+      const res = await fetch('http://10.0.2.15:8000/ocr', {//IP LOCAL DE LA MAQUINA
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      console.log('Respuesta del backend:', data);
+
+      if (data.resultado) {
+        Alert.alert('Éxito', data.resultado);//RESULTADO DEL OCR!!, JSON HAY QUE VER COMO USARLO
+      }
+
+      // 🔹 NUEVO: Guardar el pedido en Firestore
       try {
-        const formData = new FormData();
-
-        // IMPORTANTE: Formato según plataforma
-        let fileType = { type: 'image/jpeg' };
-
-        if (Platform.OS === 'web') {
-          // En web: convertir blob a File
-          const response = await fetch(uri);
-          const blob = await response.blob();
-          formData.append('file', blob, `photo_${Date.now()}.jpg`);
-        } else {
-          // En móvil: usar uri local
-          formData.append('file', {
-            uri,
-            name: 'photo_${Date.now()}.jpg',
-            type: 'image/jpeg',
-          });
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          Alert.alert("Error", "Usuario no autenticado");
+          return;
         }
 
-        // ENVIAR
-        const res = await fetch('http://10.0.2.15:8000/ocr', {//IP LOCAL DE LA MAQUINA
-          method: 'POST',
-          body: formData,
+        // Buscar datos del usuario en la colección "usuarios"
+        const q = query(
+          collection(db, COLECCION_USUARIOS),
+          where(CAMPOS_USUARIO.EMAIL, "==", currentUser.email)
+        );
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          Alert.alert("Error", "No se encontró el usuario en la base de datos");
+          return;
+        }
+
+        const userData = querySnapshot.docs[0].data();
+
+        // Crear el documento en "PedidosFarmacia"
+        await addDoc(collection(db, COLECCION_PEDIDO_FARMACIA), {
+          [CAMPOS_PEDIDO_FARMACIA.IMAGEN]: uri,
+          [CAMPOS_PEDIDO_FARMACIA.NOMBRE_USUARIO]: userData[CAMPOS_USUARIO.NOMBRE],
+          [CAMPOS_PEDIDO_FARMACIA.APELLIDO_USUARIO]: userData[CAMPOS_USUARIO.APELLIDO],
+          [CAMPOS_PEDIDO_FARMACIA.DIRECCION]: userData[CAMPOS_USUARIO.DIRECCION],
+          [CAMPOS_PEDIDO_FARMACIA.OBRASOCIAL]: userData[CAMPOS_USUARIO.OBRASOCIAL],
+          [CAMPOS_PEDIDO_FARMACIA.USER_ID]: currentUser.uid,
+          [CAMPOS_PEDIDO_FARMACIA.FECHA_PEDIDO]: serverTimestamp(),
         });
 
-        const data = await res.json();
-        console.log('Respuesta del backend:', data);
-
-        if (data.resultado) {
-          Alert.alert('Éxito', data.resultado);//RESULTADO DEL OCR!!, JSON HAY QUE VER COMO USARLO
-        }
+        console.log(" Pedido guardado en Firestore correctamente");
       } catch (error) {
-        console.error('Error enviando imagen:', error);
-        Alert.alert('Error', 'No se pudo procesar la imagen');
+        console.error("Error guardando pedido en Firestore:", error);
       }
+
+    } catch (error) {
+      console.error('Error enviando imagen:', error);
+      Alert.alert('Error', 'No se pudo procesar la imagen');
+    }
   }
 };
 
   return (<View style={styles.container}>
-      {/* TU TAB NAVIGATOR (sin cambios) */}
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
@@ -145,6 +188,7 @@ export default function AppNavigator() {
     >
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
+      <Stack.Screen name="OfertsPending" component={OfertsPendingScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="MainAppTabs" component={MainTabs} />
     </Stack.Navigator>

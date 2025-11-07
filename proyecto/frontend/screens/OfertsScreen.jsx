@@ -1,10 +1,50 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { theme } from '../styles/theme';
-import PedidoCard from '../components/PedidoCard';
-import { StatusCardButton } from '../components/StatusCardButton'; 
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from "react-native";
+import { theme } from "../styles/theme";
+import PedidoUsuarioCard from "../components/PedidoCard";
+import { StatusCardButton } from "../components/StatusCardButton";
+import { db, auth } from "../firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { COLECCION_PEDIDO_USUARIO, CAMPOS_PEDIDO_USUARIO } from "../dbConfig";
 
 export default function OfertsScreen({ navigation }) {
+  const [pedidoActual, setPedidoActual] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPedidoActual = async () => {
+      try {
+        const currentUserId = auth.currentUser ? auth.currentUser.uid : null;
+        if (!currentUserId) {
+          setPedidoActual(null);
+          setLoading(false);
+          return;
+        }
+
+        const q = query(
+          collection(db, COLECCION_PEDIDO_USUARIO),
+          where(CAMPOS_PEDIDO_USUARIO.USER_ID, "==", currentUserId)
+        );
+
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          const docSnap = querySnapshot.docs[0];
+          setPedidoActual({ id: docSnap.id, ...docSnap.data() });
+        } else {
+          setPedidoActual(null);
+        }
+      } catch (error) {
+        console.error("Error al cargar pedido actual:", error);
+        Alert.alert("Error", "No se pudo cargar el pedido actual.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPedidoActual();
+  }, []);
+
   return (
     <ScrollView
       contentContainerStyle={{
@@ -18,17 +58,20 @@ export default function OfertsScreen({ navigation }) {
         <Text style={styles.headerSubtitle}>Disponible 24/7</Text>
       </View>
 
-      {/* Contenido principal */}
+     
       <View style={styles.content}>
-        <Text style={styles.sectionTitle}>Tus Pedidos</Text>
+        <Text style={styles.sectionTitle}>Tu Pedido Actual</Text>
 
-        {/* Tarjeta de pedido */}
-        <PedidoCard />
+        {loading ? (
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        ) : pedidoActual ? (
+          <PedidoUsuarioCard pedido={pedidoActual} />
+        ) : (
+          <Text style={styles.noPedidoText}>No tenés pedidos activos.</Text>
+        )}
 
-        {/* Espacio entre secciones */}
         <View style={{ height: 20 }} />
 
-        {/* Botones debajo del pedido */}
         <StatusCardButton
           iconName="time-outline"
           title="Historial de Pedidos"
@@ -41,43 +84,15 @@ export default function OfertsScreen({ navigation }) {
           iconName="pricetags-outline"
           title="Ofertas Hechas"
           description="Mirá tus ofertas activas"
-          targetScreen="MyOffers"
+          targetScreen="OfertsPending"
           navigation={navigation}
         />
       </View>
     </ScrollView>
   );
 }
-// en el scroll view se pueden meter mas de un pedido con esto 
-/*
-const [pedidos, setPedidos] = useState([]);
-
-useEffect(() => {
-  const fetchPedidos = async () => {
-    const querySnapshot = await getDocs(collection(db, "pedidos"));
-    const lista = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setPedidos(lista);
-  };
-  fetchPedidos();
-}, []);
-El ScroolViwe adentro de el view
-<ScrollView>
-    {pedidos.length > 0 ? (
-      pedidos.map(pedido => (
-        <PedidoCard key={pedido.id} texto={pedido.descripcion} />
-      ))
-    ) : (
-      <PedidoCard texto="No se tiene un pedido actual" />
-    )}
-  </ScrollView>
-*/
-
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
   header: {
     backgroundColor: theme.colors.primary,
     paddingTop: 60,
@@ -101,5 +116,11 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.foreground,
     marginBottom: theme.spacing.md,
+  },
+  noPedidoText: {
+    color: theme.colors.mutedForeground,
+    fontSize: theme.typography.fontSize.base,
+    textAlign: "center",
+    marginTop: 16,
   },
 });
