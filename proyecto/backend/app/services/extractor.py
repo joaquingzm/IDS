@@ -377,7 +377,7 @@ if __name__ == "__main__":
     from services.vademecum_loader import get_vademecum
     from services.ocr_service import extract_text_from_image
 
-    IMG_NAME, IMG_EXTENSION = "joaco2", ".jpeg"
+    IMG_NAME, IMG_EXTENSION = "receta3", ".jpeg"
     ocr_tuples = extract_text_from_image(IMG_NAME, IMG_EXTENSION)  
     palabras_ocr = [t for t,_ in ocr_tuples]
     ocr_confs = [c for _,c in ocr_tuples]
