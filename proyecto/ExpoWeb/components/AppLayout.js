@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../styles/theme";
 import CustomSidebar from "./CustomTab";
-import HomeScreen from "../screens/HomeScreen";
+import HistorialScreen from "../screens/HistorialScreen";
 import OrdersPendingScreen from "../screens/OrdersPendingScreen";
 import OrdersActiveScreen from "../screens/OrdersActiveScreen";
 import ProfileScreen from "../screens/ProfileScreen";
@@ -12,16 +12,16 @@ export default function AppLayout() {
 
   const renderScreen = () => {
     switch (activeTab) {
-      case "Inicio":
-        return <HomeScreen />;
       case "Pedidos Pendientes":
         return <OrdersPendingScreen />;
        case "Pedidos Activos":
         return <OrdersActiveScreen />; 
+       case "Historial de Pedidos":
+        return <HistorialScreen />; 
       case "Perfil":
         return <ProfileScreen />;
       default:
-        return <HomeScreen />;
+        return <OrdersPendingScreen />;
     }
   };
 

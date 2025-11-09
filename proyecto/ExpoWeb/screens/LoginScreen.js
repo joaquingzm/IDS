@@ -23,7 +23,6 @@ export default function LoginScreen({navigation}) {
       // Login exitoso
       const user = userCredential.user;
       console.log("Usuario logueado:", user.uid);
-      //navigation.replace('MainAppTabs');
       navigation.replace('Main');
     })
     .catch((error) => {

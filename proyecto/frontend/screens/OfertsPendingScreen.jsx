@@ -1,98 +1,99 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet,SafeAreaView,TouchableOpacity,ScrollView,Alert,
-  ActivityIndicator // Para mostrar que está cargando
-} from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { theme } from '../styles/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { db, auth } from '../firebase'; 
 import { collection, query, getDocs, where } from 'firebase/firestore'; 
-import HistorialCard from '../components/PedidoHistorialCard';
-import { COLECCION_HISTORIAL_PEDIDO, CAMPOS_HISTORIAL } from "../dbConfig";
+import OfertaCard from '../components/OfertaCard'; 
+import { COLECCION_OFERTA, CAMPOS_Oferta } from '../dbConfig';
 
-
-
-export default function OrderHistoryScreen({ navigation }) {
-  const [pedidos, setPedidos] = useState([]);
+export default function OfertasUsuarioScreen({ navigation }) {
+  const [ofertas, setOfertas] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchPedidos = async () => {
+    const fetchOfertas = async () => {
       setLoading(true);
       try {
         const currentUserId = auth.currentUser ? auth.currentUser.uid : null;
         if (!currentUserId) {
-          setPedidos([]);
+          setOfertas([]);
           setLoading(false);
           return;
         }
 
+        // 🔎 Consulta Firestore usando tus constantes
         const q = query(
-          collection(db, COLECCION_HISTORIAL_PEDIDO),
-          where(CAMPOS_HISTORIAL.USER_ID, "==", currentUserId)
+          collection(db, COLECCION_OFERTA),
+          where(CAMPOS_Oferta.USER_ID, "==", currentUserId)
         );
-
+        
         const querySnapshot = await getDocs(q);
-        const lista = querySnapshot.docs.map((doc) => ({
+        const lista = querySnapshot.docs.map(doc => ({
           id: doc.id,
-          ...doc.data(),
+          ...doc.data()
         }));
-        setPedidos(lista);
+
+        setOfertas(lista);
       } catch (error) {
-        console.error("Error cargando historial: ", error);
-        Alert.alert("Error", "No se pudo cargar el historial.");
+        console.error("Error cargando ofertas: ", error);
+        Alert.alert("Error", "No se pudo cargar la lista de ofertas.");
       }
       setLoading(false);
     };
 
-    fetchPedidos();
+    fetchOfertas();
   }, []);
 
+  const renderOfertas = () => {
+    if (loading) {
+      return <ActivityIndicator size="large" color={theme.colors.primary} />;
+    }
 
-  const renderPedidos = () => {
-  if (loading) {
-    return <ActivityIndicator size="large" color={theme.colors.primary} />;
-  }
+    if (ofertas.length === 0) {
+      return (
+        <Text style={styles.emptyText}>
+          No tienes ofertas disponibles por ahora.
+        </Text>
+      );
+    }
 
-  if (pedidos.length > 0) {
-    return pedidos.map((pedido) => (
-      <HistorialCard key={pedido.id} pedido={pedido} />
+    return ofertas.map(oferta => (
+      <OfertaCard key={oferta.id} pedido={oferta} />
     ));
-  } else {
-    return (
-      <View style={{ alignItems: "center", marginTop: 40 }}>
-        <Ionicons name="document-text-outline" size={40} color={theme.colors.mutedForeground} />
-        <Text style={styles.emptyText}>No tienes pedidos en tu historial</Text>
-      </View>
-    );
-  }
-};
+  };
 
- return (
+  return (
     <SafeAreaView style={styles.safeArea}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
+        <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Historial de Pedidos</Text>
+        <Text style={styles.headerTitle}>Mis Ofertas</Text>
       </View>
 
+      {/* Alerta simple */}
       <View style={styles.alertBox}>
         <Ionicons name="cube-outline" size={20} color={theme.colors.primary} />
         <Text style={styles.alertText}>
-          {loading
-            ? "Cargando pedidos..."
-            : `Tienes ${pedidos.length} pedidos en tu historial`}
+          {loading 
+            ? "Cargando ofertas..." 
+            : `Tienes ${ofertas.length} ofertas disponibles`}
         </Text>
       </View>
 
-      <ScrollView style={styles.content}>{renderPedidos()}</ScrollView>
+      {/* Listado de ofertas */}
+      <ScrollView style={styles.content}>
+        {renderOfertas()}
+      </ScrollView>
     </SafeAreaView>
   );
 }
-// Estilos (similares a OfertsScreen)
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -134,7 +135,7 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.sm,
     color: '#1e40af',
   },
-  emptyText: { // Este ya no se usa si usamos PedidoCard como fallback
+  emptyText: {
     textAlign: 'center',
     color: theme.colors.mutedForeground,
     marginTop: 40,

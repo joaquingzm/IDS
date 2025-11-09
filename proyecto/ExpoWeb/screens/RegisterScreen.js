@@ -19,8 +19,16 @@ export default function RegisterScreen({navigation}) {
     try{
         const UserCredential = await createUserWithEmailAndPassword(auth,email,password);
         const user = UserCredential.user;
-
-        await new Promise(res => setTimeout(res, 500));
+        
+        
+        await new Promise((resolve) => {
+          const unsub = auth.onAuthStateChanged((u) => {
+            if (u) {
+              unsub();
+              resolve();
+            }
+          });
+        });
 
         await setDoc(doc(db, COLECCION_FARMACIAS,user.uid),{
         [CAMPOS_FARMACIA.EMAIL]: email,
