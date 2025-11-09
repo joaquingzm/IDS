@@ -5,7 +5,9 @@ import { theme } from "../styles/theme";
 import Logo from "../assets/LogoRappiFarma.png";
 import useNav from "../hooks/UseNavigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth, db } from "../firebase";
+import { COLECCION_USUARIOS, COLECCION_FARMACIAS } from "../dbConfig";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function LoginScreen({navigation}) {
   const { login } = useContext(AuthContext);
@@ -16,21 +18,26 @@ export default function LoginScreen({navigation}) {
   const { goRegister } = useNav();
   const { goMain } = useNav();
 
-  function handleLogin() {
-   // Llamamos a Firebase
-  signInWithEmailAndPassword(auth, email, password)
-    .then((userCredential) => {
-      // Login exitoso
-      const user = userCredential.user;
-      console.log("Usuario logueado:", user.uid);
-      navigation.replace('Main');
-    })
-    .catch((error) => {
-      console.log("Error al iniciar sesión:", error.message);
-      alert("Email o contraseña incorrectos");
-    });
+  async function handleLogin() {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
 
+    const farmaciaRef = doc(db, COLECCION_FARMACIAS, user.uid);
+    const farmaciaSnap = await getDoc(farmaciaRef);
+
+    if (farmaciaSnap.exists()) {
+      navigation.replace("MainAppTabsFarmacia");
+      return;
+    }
+
+    await auth.signOut();
+    alert("Email o contraseña incorrectos");
+
+  } catch (error) {
+    alert("Email o contraseña incorrectos");
   }
+}
 
   return (
     <View style={styles.container}>
