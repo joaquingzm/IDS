@@ -3,47 +3,20 @@ import { View, FlatList, ActivityIndicator, StyleSheet, Text } from "react-nativ
 import { theme } from "../styles/theme";
 import CardPedidoPendiente from "../components/pedidoPendienteCard";
 import RappiFarma from "../assets/LogoRappiFarma.png";
-// import { collection, onSnapshot } from "firebase/firestore";
-// import { db } from "../firebase";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "../firebase";
 
 export default function OrdersPendingScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Datos de ejemplo (mock)
-  const pedidosMock = [
-    {
-      id: "1",
-      producto: "Paracetamol 500mg",
-      cliente: "Juan Pérez",
-      cantidad: 2,
-      imagen: "https://cdn-icons-png.flaticon.com/512/2965/2965567.png",
-    },
-    {
-      id: "2",
-      producto: "Ibuprofeno 400mg",
-      cliente: "María López",
-      cantidad: 1,
-      imagen: "https://cdn-icons-png.flaticon.com/512/3082/3082023.png",
-    },
-  ];
-
   useEffect(() => {
-    //  FUTURO: Conexión Firebase
-    /*
-    const unsub = onSnapshot(collection(db, "pedidosPendientes"), (snapshot) => {
+    const unsub = onSnapshot(collection(db, "PedidosFarmacia"), (snapshot) => {
       const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setPedidos(data);
       setLoading(false);
     });
     return () => unsub();
-    */
-
-    //  TEMPORAL: Mock data
-    setTimeout(() => {
-      setPedidos(pedidosMock);
-      setLoading(false);
-    }, 1000);
   }, []);
 
   if (loading) {
