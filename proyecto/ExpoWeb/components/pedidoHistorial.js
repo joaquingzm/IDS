@@ -1,22 +1,47 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../styles/theme";
+import { CAMPOS_PEDIDO_HISTORIAL } from "../dbConfig"; // asegúrate de importar correctamente
 
 export default function PedidoCard({ pedido }) {
+  if (!pedido) {
+    return (
+      <View style={styles.card}>
+        <Text style={styles.noPedido}>No se tiene un pedido actual</Text>
+      </View>
+    );
+  }
+
+  const nombre = pedido[CAMPOS_PEDIDO_HISTORIAL.NOMBRE_USUARIO];
+  const apellido = pedido[CAMPOS_PEDIDO_HISTORIAL.APELLIDO_USUARIO];
+  const fechaPedido = pedido[CAMPOS_PEDIDO_HISTORIAL.FECHA_PEDIDO]?.toDate?.() || null;
+  const direccion = pedido[CAMPOS_PEDIDO_HISTORIAL.DIRECCION];
+  const obraSocial = pedido[CAMPOS_PEDIDO_HISTORIAL.OBRASOCIAL];
+  const medicamentos = pedido[CAMPOS_PEDIDO_HISTORIAL.MEDICAMENTOS];
+  const monto = pedido[CAMPOS_PEDIDO_HISTORIAL.MONTO];
+
   return (
     <View style={styles.card}>
-      {pedido ? (
-        <>
-          <Text style={styles.title}>Pedido #{pedido.id}</Text>
-          <Text style={styles.text}>Producto: {pedido.producto}</Text>
-          <Text style={styles.text}>Cantidad: {pedido.cantidad}</Text>
-          <Text style={styles.text}>Estado: {pedido.estado}</Text>
-          <Text style={styles.text}>Fecha: {pedido.fecha}</Text>
-          <Text style={styles.text}>Horario: {pedido.horario}</Text>
-        </>
-      ) : (
-        <Text style={styles.noPedido}>No se tiene un pedido actual</Text>
+      <Text style={styles.title}>
+        Pedido de {nombre} {apellido}
+      </Text>
+
+      {fechaPedido && (
+        <Text style={styles.text}>
+          📅 Fecha: {fechaPedido.toLocaleDateString()}{" "}
+          {fechaPedido.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </Text>
       )}
+
+      {direccion && <Text style={styles.text}>📍 Dirección: {direccion}</Text>}
+
+      {obraSocial && <Text style={styles.text}>🏥 Obra social: {obraSocial}</Text>}
+
+      {medicamentos && (
+        <Text style={styles.text}>💊 Medicamentos: {medicamentos}</Text>
+      )}
+
+      {monto && <Text style={styles.text}>💰 Monto: ${monto}</Text>}
     </View>
   );
 }
@@ -49,18 +74,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.base,
     fontStyle: "italic",
     color: theme.colors.mutedForeground,
-    marginBottom: theme.spacing.sm,
-  },
-  button: {
-    backgroundColor: theme.colors.primary,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    alignItems: "center",
-    marginTop: theme.spacing.sm,
-  },
-  buttonText: {
-    color: theme.colors.background,
-    fontSize: theme.typography.fontSize.base,
-    fontWeight: theme.typography.fontWeight.medium,
+    textAlign: "center",
   },
 });
