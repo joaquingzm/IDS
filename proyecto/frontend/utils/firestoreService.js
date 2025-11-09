@@ -210,7 +210,7 @@ export async function crearOferta(pedidoId, pedidoData) {
         [CAMPOS_OFERTA.NOMBRE_FARMACIA]: pedidoData.nombreFarmacia || "",
         [CAMPOS_OFERTA.MONTO]: pedidoData.monto || 0,
         [CAMPOS_OFERTA.MEDICAMENTO]: pedidoData.medicamento || [],
-        [CAMPOS_OFERTA.TIEMPO_ESPERA]: pedidoData.tiempoEspera || null,
+        [CAMPOS_OFERTA.Tiempo_Espera]: pedidoData.tiempoEspera || null,
         [CAMPOS_OFERTA.FECHA_OFERTA]: serverTimestamp(),
         [CAMPOS_OFERTA.ESTADO]: ESTADOS_OFERTA?.PENDIENTE || "pendiente",
     };
