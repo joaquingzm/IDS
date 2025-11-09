@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, FlatList, ActivityIndicator, StyleSheet, Text } from "react-native";
 import { theme } from "../styles/theme";
-import CardPedidoPendiente from "../components/pedidoPendienteCard";
+import CardPedidoEntrante from "../components/pedidoEntranteCard";
 import RappiFarma from "../assets/LogoRappiFarma.png";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
@@ -29,19 +29,19 @@ export default function OrdersPendingScreen() {
 
   return (
   <View style={styles.container}>
-    <Text style={styles.title}>Pedidos Pendientes</Text>
+    <Text style={styles.title}>Pedidos Entrantes</Text>
 
     {pedidos.length > 0 ? (
       <FlatList
         data={pedidos}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <CardPedidoPendiente pedido={item} />}
+        renderItem={({ item }) => <CardPedidoEntrante pedido={item} />}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
       />
     ) : (
       <View style={styles.emptyContainer}>
-        <Text style={styles.noPedidosText}>No hay pedidos Pendientes</Text>
+        <Text style={styles.noPedidosText}>No hay pedidos Entrantes</Text>
       </View>
     )}
   </View>

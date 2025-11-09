@@ -52,7 +52,7 @@ export default function CardPedidoEntrante({ pedido }) {
           fechaAceptacion: new Date(),
         };
 
-        // Mover el documento a la colección "PedidosAceptados"
+        // Mover el documento a la colección "PedidosPendientes"
         await setDoc(doc(db, COLECCION_PEDIDO_ACEPTADOS, pedido.id), pedidoAceptado);
         await deleteDoc(pedidoRef);
 

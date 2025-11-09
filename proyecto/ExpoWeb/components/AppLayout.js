@@ -3,8 +3,9 @@ import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../styles/theme";
 import CustomSidebar from "./CustomTab";
 import HistorialScreen from "../screens/HistorialScreen";
-import OrdersPendingScreen from "../screens/OrdersPendingScreen";
+import OrdersEntringScreen from "../screens/OrdersEntringScreen";
 import OrdersActiveScreen from "../screens/OrdersActiveScreen";
+import OrdersPendingScreen from "../screens/OrdersPendingScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 
 export default function AppLayout() {
@@ -12,16 +13,18 @@ export default function AppLayout() {
 
   const renderScreen = () => {
     switch (activeTab) {
-      case "Pedidos Pendientes":
-        return <OrdersPendingScreen />;
+      case "Pedidos Entrantes":
+        return <OrdersEntringScreen />;
        case "Pedidos Activos":
         return <OrdersActiveScreen />; 
        case "Historial de Pedidos":
         return <HistorialScreen />; 
-      case "Perfil":
+       case "Perfil":
         return <ProfileScreen />;
-      default:
+       case "Pedidos Pendientes":
         return <OrdersPendingScreen />;
+      default:
+        return <OrdersEntringScreen />;
     }
   };
 

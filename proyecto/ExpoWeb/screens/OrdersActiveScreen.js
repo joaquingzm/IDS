@@ -33,34 +33,37 @@ export default function OrdersActiveScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Pedidos Activos</Text>
+  <View style={styles.container}>
+    <Text style={styles.title}>Pedidos Activos</Text>
 
-      {pedidos.length > 0 ? (
-        <FlatList
-          data={pedidos}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <PedidoActivaCard 
-              pedidoData={item} 
-              onPedidoEliminado={handlePedidoEliminado}
-            />
-          )}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-      ) : (
-        <Text style={styles.noPedidoText}>No hay pedidos activos.</Text>
-      )}
-    </View>
-  );
+    {pedidos.length > 0 ? (
+      <FlatList
+        data={pedidos}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <PedidoActivaCard
+            pedidoData={item}
+            onPedidoEliminado={handlePedidoEliminado}
+          />
+        )}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContainer}
+      />
+    ) : (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.noPedidoText}>No hay pedidos activos</Text>
+      </View>
+    )}
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-    paddingTop: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
   },
   title: {
     fontSize: theme.typography.fontSize["2xl"],
@@ -68,16 +71,24 @@ const styles = StyleSheet.create({
     color: theme.colors.foreground,
     textAlign: "center",
     marginBottom: theme.spacing.md,
+    borderBottomWidth: 2,
+    borderColor: theme.colors.mutedForeground,
+    paddingBottom: theme.spacing.sm,
   },
-  loaderContainer: {
+  listContainer: {
+    paddingBottom: theme.spacing.xl,
+  },
+  emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
   noPedidoText: {
     textAlign: "center",
-    marginTop: theme.spacing.xl,
     color: theme.colors.mutedForeground,
     fontSize: theme.typography.fontSize.lg,
+    marginTop: theme.spacing.lg,
+    opacity: 0.8,
   },
 });
+

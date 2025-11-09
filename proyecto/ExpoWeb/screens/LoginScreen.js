@@ -9,10 +9,9 @@ import { auth, db } from "../firebase";
 import { COLECCION_USUARIOS, COLECCION_FARMACIAS } from "../dbConfig";
 import { doc, getDoc } from "firebase/firestore";
 
+
 export default function LoginScreen({navigation}) {
   const { login } = useContext(AuthContext);
-
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { goRegister } = useNav();
@@ -27,7 +26,7 @@ export default function LoginScreen({navigation}) {
     const farmaciaSnap = await getDoc(farmaciaRef);
 
     if (farmaciaSnap.exists()) {
-      navigation.replace("MainAppTabsFarmacia");
+      navigation.replace("Main");
       return;
     }
 
@@ -37,7 +36,8 @@ export default function LoginScreen({navigation}) {
   } catch (error) {
     alert("Email o contraseña incorrectos");
   }
-}
+
+  }
 
   return (
     <View style={styles.container}>

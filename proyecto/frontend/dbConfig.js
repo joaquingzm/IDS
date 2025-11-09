@@ -23,7 +23,7 @@ export const COLECCION_USUARIOS = "usuarios";
 
 export const CAMPOS_USUARIO = {
   EMAIL: "email",
-  CONTRASEÑA: "contrasena", 
+  CONTRASEÑA: "contrasena",
   NOMBRE: "nombre",
   APELLIDO: "apellido",
   FECHA_REGISTRO: "fechaRegistro",
@@ -58,7 +58,7 @@ export const CAMPOS_PEDIDO = {
   // Info pedido
   IMAGEN: "imagen",
   OCR: "resultadosOCR",
-  FECHA_PEDIDO: "fechaPedido", 
+  FECHA_PEDIDO: "fechaPedido",
 
   // Estado pedido
   ESTADO: "estado", // entrante, pendiente, activo, realizado, rechazado
@@ -82,7 +82,7 @@ export const CAMPOS_OFERTA = {
   MEDICAMENTO: "medicamento",
   FECHA_OFERTA: "fechaOferta",
   Tiempo_Espera: "tiempoEspera",
-  
+
   // Estado oferta
   ESTADO: "estado", // pendiente, aceptada, rechazada
 };

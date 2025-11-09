@@ -8,6 +8,7 @@ export default function CustomSidebar({ activeTab, setActiveTab }) {
     <View style={styles.wrapper}>
       <View style={styles.container}>
                {[
+          { key: "Pedidos Entrantes", label: "Pedidos Entrantes" },
           { key: "Pedidos Pendientes", label: "Pedidos Pendientes" },
           { key: "Pedidos Activos", label: "Pedidos Activos" },
           { key: "Historial de Pedidos", label: "Historial" },
