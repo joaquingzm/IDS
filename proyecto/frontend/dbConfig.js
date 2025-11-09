@@ -23,6 +23,7 @@ export const CAMPOS_PEDIDO_FARMACIA = {
   DIRECCION: "direccionUsuario",
   USER_ID: "userId",
   OBRASOCIAL: "obraSocialUsuario",
+  OCR: "resultadosOCR",
 };
 
 

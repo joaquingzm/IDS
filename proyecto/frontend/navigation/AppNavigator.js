@@ -53,6 +53,39 @@ function MainTabs() {
     //setPhotoUri(uri); Para que se vea abajo a la derecha, no hace falta;
     // ENVIAR AL BACKEND
     try {
+      // DESPUÉS: PROCESAR OCR (código intacto como estaba)
+      const formData = new FormData();
+
+      // IMPORTANTE: Formato según plataforma
+      let fileType = { type: "image/jpeg" };
+
+      if (Platform.OS === "web") {
+        // En web: convertir blob a File
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        formData.append("file", blob, `photo_${Date.now()}.jpg`);
+      } else {
+        // En móvil: usar uri local
+        formData.append("file", {
+          uri,
+          name: `photo_${Date.now()}.jpg`,
+          type: "image/jpeg",
+        });
+      }
+
+      const res = await fetch("http://10.0.2.15:8001/ocr", {
+        //IP LOCAL DE LA MAQUINA
+        method: "POST",
+        body: formData,
+      });
+
+      const resultOCR = await res.json();
+      console.log("Respuesta del backend:", resultOCR);
+
+      if (resultOCR.resultado) {
+        Alert.alert("Éxito", resultOCR.resultado); //RESULTADO DEL OCR!!, JSON HAY QUE VER COMO USARLO
+      }
+
 
       console.log("Subiendo imagen a Cloudinary...");
       const imageUrl = await uploadImageToCloudinary(uri);
@@ -74,6 +107,7 @@ function MainTabs() {
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) {
+          console.log("Error", "No se encontró el usuario en la base de datos");
           Alert.alert("Error", "No se encontró el usuario en la base de datos");
           return;
         }
@@ -81,7 +115,7 @@ function MainTabs() {
         const userData = querySnapshot.docs[0].data();
 
         // Crear el documento en "PedidosFarmacia"
-        await addDoc(collection(db, COLECCION_PEDIDO_FARMACIA), {
+        const docRef = await addDoc(collection(db, COLECCION_PEDIDO_FARMACIA), {
           [CAMPOS_PEDIDO_FARMACIA.IMAGEN]: imageUrl, // la URL de Cloudinary
           [CAMPOS_PEDIDO_FARMACIA.NOMBRE_USUARIO]: userData[CAMPOS_USUARIO.NOMBRE],
           [CAMPOS_PEDIDO_FARMACIA.APELLIDO_USUARIO]: userData[CAMPOS_USUARIO.APELLIDO],
@@ -89,9 +123,10 @@ function MainTabs() {
           [CAMPOS_PEDIDO_FARMACIA.OBRASOCIAL]: userData[CAMPOS_USUARIO.OBRASOCIAL],
           [CAMPOS_PEDIDO_FARMACIA.USER_ID]: currentUser.uid,
           [CAMPOS_PEDIDO_FARMACIA.FECHA_PEDIDO]: serverTimestamp(),
+          [CAMPOS_PEDIDO_FARMACIA.OCR]: resultOCR,
         });
 
-        console.log("Pedido guardado en Firestore correctamente");
+        console.log("Pedido guardado en Firestore correctamente, id: "+docRef.id);
         Alert.alert("Éxito", "Pedido creado correctamente");
       } catch (firestoreError) {
         console.error(" Error guardando pedido en Firestore:", firestoreError);
@@ -99,44 +134,12 @@ function MainTabs() {
         return;
       }
 
-      // DESPUÉS: PROCESAR OCR (código intacto como estaba)
-      const formData = new FormData();
-
-      // IMPORTANTE: Formato según plataforma
-      let fileType = { type: "image/jpeg" };
-
-      if (Platform.OS === "web") {
-        // En web: convertir blob a File
-        const response = await fetch(uri);
-        const blob = await response.blob();
-        formData.append("file", blob, `photo_${Date.now()}.jpg`);
-      } else {
-        // En móvil: usar uri local
-        formData.append("file", {
-          uri,
-          name: `photo_${Date.now()}.jpg`,
-          type: "image/jpeg",
-        });
-      }
-
-      const res = await fetch("http://10.0.2.15:8000/ocr", {
-        //IP LOCAL DE LA MAQUINA
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
-      console.log("Respuesta del backend:", data);
-
-      if (data.resultado) {
-        Alert.alert("Éxito", data.resultado); //RESULTADO DEL OCR!!, JSON HAY QUE VER COMO USARLO
-      }
-
     } catch (error) {
       console.error("Error enviando imagen:", error);
       Alert.alert("Error", "No se pudo procesar la imagen");
     }
   }
+
 };
 
   return (<View style={styles.container}>
