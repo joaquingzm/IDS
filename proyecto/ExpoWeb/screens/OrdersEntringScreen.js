@@ -2,18 +2,18 @@ import React, { useEffect, useState } from "react";
 import { View, FlatList, ActivityIndicator, StyleSheet, Text } from "react-native";
 import { theme } from "../styles/theme";
 import CardPedidoEntrante from "../components/pedidoEntranteCard";
-import RappiFarma from "../assets/LogoRappiFarma.png";
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "../firebase";
+import { listenPedidosPorEstado } from "../../frontend/utils/firestoreService";
+import {
+  ESTADOS_PEDIDO,
+} from "../dbConfig"
 
 export default function OrdersPendingScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "PedidosFarmacia"), (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setPedidos(data);
+    const unsub = listenPedidosPorEstado(ESTADOS_PEDIDO.ENTRANTE, (items) => {
+      setPedidos(items);
       setLoading(false);
     });
     return () => unsub();
@@ -28,24 +28,24 @@ export default function OrdersPendingScreen() {
   }
 
   return (
-  <View style={styles.container}>
-    <Text style={styles.title}>Pedidos Entrantes</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Pedidos Entrantes</Text>
 
-    {pedidos.length > 0 ? (
-      <FlatList
-        data={pedidos}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <CardPedidoEntrante pedido={item} />}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContainer}
-      />
-    ) : (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.noPedidosText}>No hay pedidos Entrantes</Text>
-      </View>
-    )}
-  </View>
-);
+      {pedidos.length > 0 ? (
+        <FlatList
+          data={pedidos}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <CardPedidoEntrante pedido={item} />}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContainer}
+        />
+      ) : (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.noPedidosText}>No hay pedidos Entrantes</Text>
+        </View>
+      )}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
