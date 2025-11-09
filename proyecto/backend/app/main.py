@@ -1,39 +1,31 @@
-from services.roi import roi_detection
-from services.ocr import infer_trOCR
-from services.post import classify_token, get_vademecum
-import cv2
-import os
-import pandas as pd
-from collections import defaultdict
-
-IMG_NAME = "joaco1"
-IMG_EXTENSION = ".jpeg"
-WANTS_IMG = False
+from services.ocr_service import extract_text_from_image
+from services.vademecum_loader import get_vademecum
+from services.extractor import find_best_window, extract_fields_from_window, normalize_line
 
 
-palabras_ocr = roi_detection(IMG_NAME, IMG_EXTENSION, WANTS_IMG)
 
-palabras_ocr.upper()
-print("Palabrasocr: ",palabras_ocr)
+def extraerTexto(IMG_NAME:str , IMG_EXT:str):
+    ocr_tuples = extract_text_from_image(IMG_NAME, IMG_EXT) 
+    palabras_ocr = [t for t,_ in ocr_tuples]
+    ocr_confs = [c for _,c in ocr_tuples]
+    norm_lines = [normalize_line(ln) for ln in palabras_ocr]
+    vadem = get_vademecum()
 
-palabras_ocr_lista = palabras_ocr.split()
-vademecum = get_vademecum()
-threshold = 70
+  
+    start, end, window = find_best_window(norm_lines, vadem, ocr_confs=ocr_confs)
+    raw_window_lines = palabras_ocr[start:end + 1] if start <= end else []
+    result = extract_fields_from_window(window, raw_window_lines, vadem)
 
-
-clasificados = defaultdict(lambda: {"palabras": [], "matches": []})
-
-
-for palabra in palabras_ocr_lista:
-    print('Palabra: ',palabra)
-    clasificacion, match, score = classify_token(palabra, vademecum, threshold)
-    if clasificacion: 
-        clasificados[clasificacion]["palabras"].append(palabra)
-        clasificados[clasificacion]["matches"].append(match)
-
-for categoria, datos in clasificados.items():
-    datos["palabras"] = " ".join(datos["palabras"])
-    datos["matches"] = " ".join(datos["matches"])
+    print("\nCampos corregidos:")
+    for k, v in result["corrected_fields"].items():
+        print(f" • {k}: {v}")
+    
+    return result["corrected_fields"] 
 
 
-print(dict(clasificados))
+if __name__ == "__main__":
+
+    IMG_NAME = "joaco3"
+    IMG_EXT = ".jpeg"
+
+    print(extraerTexto(IMG_NAME, IMG_EXT))
