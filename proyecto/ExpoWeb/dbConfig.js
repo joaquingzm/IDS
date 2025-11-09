@@ -1,4 +1,38 @@
 // dbConfig.js
+
+
+
+export const ESTADOS_PEDIDO = {
+  ENTRANTE: "entrante",
+  PENDIENTE: "pendiente",
+  ACTIVO: "activo",
+  REALIZADO: "realizado",
+  RECHAZADO: "rechazado",
+};
+
+export const ESTADOS_OFERTA = {
+  PENDIENTE: "pendiente",
+  ACEPTADA: "aceptada",
+  RECHAZADA: "rechazada",
+};
+
+
+
+
+export const COLECCION_USUARIOS = "usuarios";
+
+export const CAMPOS_USUARIO = {
+  EMAIL: "email",
+  CONTRASEÑA: "contrasena",
+  NOMBRE: "nombre",
+  APELLIDO: "apellido",
+  FECHA_REGISTRO: "fechaRegistro",
+  OBRASOCIAL: "obraSocial",
+  DNI: "dni",
+  DIRECCION: "direccion",
+};
+
+
 export const COLECCION_FARMACIAS = "usuarios_Farmacias";
 
 export const CAMPOS_FARMACIA = {
@@ -6,47 +40,52 @@ export const CAMPOS_FARMACIA = {
   CONRASEÑA: "Contraseña",
   NOMBRE: "nombre_farmacia",
   DIRECCION: "Direccion",
-  ROL: "rol",
   FECHA_REGISTRO: "fechaRegistro",
   TELEFONO: "Telefono comercial",
 };
 
 
-export const COLECCION_PEDIDO_FARMACIA = "PedidosFarmacia";
+export const COLECCION_PEDIDO = "PedidosFarmacia";
 
-export const CAMPOS_PEDIDO_FARMACIA = {
+export const CAMPOS_PEDIDO = {
+  // Info cliente
+  USER_ID: "userId",
+  NOMBRE_USUARIO: "nombreUsuario",
+  APELLIDO_USUARIO: "apellidoUsuario",
+  OBRASOCIAL: "obraSocialUsuario",
+  DIRECCION: "direccionUsuario",
+
+  // Info pedido
   IMAGEN: "imagen",
-  NOMBRE_USUARIO: "nombreUsuario",
-  APELLIDO_USUARIO: "apellidoUsuario",
+  OCR: "resultadosOCR",
   FECHA_PEDIDO: "fechaPedido",
-  DIRECCION: "direccionUsuario",
-  USER_ID: "userId",
-  OBRASOCIAL: "obraSocialUsuario",
+
+  // Estado pedido
+  ESTADO: "estado", // entrante, pendiente, activo, realizado, rechazado
+  OFERTA_ACEPTADA_ID: "ofertaAceptadaId",
+  FARMACIA_ASIGANADA_ID: "farmaciaAsignadaID",
+
+  // Ofertas
+  OFERTAS_IDS: "ofertasId",
 };
 
 
-export const COLECCION_PEDIDO_ACEPTADOS = "PedidosAceptados";
+export const COLECCION_OFERTA = "Oferta";
 
-export const CAMPOS_PEDIDO_ACEPTADOS = {
-  NOMBRE_USUARIO: "nombreUsuario",
-  APELLIDO_USUARIO: "apellidoUsuario", 
-  FECHA_PEDIDO: "fechaPedido",
-  DIRECCION: "direccionUsuario",
-  USER_ID: "userId",
-  OBRASOCIAL: "obraSocialUsuario",
-  MEDICAMENTOS: "Medicamentos",
-  MONTO: "Monto",
+export const CAMPOS_OFERTA = {
+  // Info farmacia
+  FARMACIA_ID: "farmaciaId",
+  NOMBRE_FARMACIA: "nombre de farmacia",
+
+  // Info oferta
+  MONTO: "monto",
+  MEDICAMENTO: "medicamento",
+  FECHA_OFERTA: "fechaOferta",
+  Tiempo_Espera: "tiempoEspera",
+
+  // Estado oferta
+  ESTADO: "estado", // pendiente, aceptada, rechazada
 };
 
-export const COLECCION_PEDIDO_HISTORIAL = "PedidosHistorial";
 
-export const CAMPOS_PEDIDO_HISTORIAL = {
-  NOMBRE_USUARIO: "nombreUsuario",
-  APELLIDO_USUARIO: "apellidoUsuario",
-  FECHA_PEDIDO: "fechaPedido",
-  DIRECCION: "direccionUsuario",
-  USER_ID: "userId",
-  OBRASOCIAL: "obraSocialUsuario",
-  MEDICAMENTOS: "Medicamentos",
-  MONTO:"Monto",
-};
+
