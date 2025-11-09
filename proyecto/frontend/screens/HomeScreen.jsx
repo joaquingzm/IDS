@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image } from "react-native";
+import { View, Text,TouchableOpacity,  StyleSheet, FlatList, Image,ScrollView} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { globalStyles } from "../styles/global";
 import { theme } from "../styles/theme";
@@ -16,6 +16,23 @@ export default function HomeScreen() {
     { id: "4", title: "25% OFF", desc: "Todos los productos", exp: "14/10/2025" },
   ];
 
+  const farmacias = [
+    {
+      id: "f1",
+      nombre: "Farmacia Central",
+      direccion: "Av. Siempre Viva 742",
+      horario: "Abierto 24h",
+      imagen: "https://cdn-icons-png.flaticon.com/512/2965/2965567.png",
+    },
+    {
+      id: "f2",
+      nombre: "Farmacia del Sol",
+      direccion: "Calle Libertad 1010",
+      horario: "Lun–Sáb 8:00–22:00",
+      imagen: "https://cdn-icons-png.flaticon.com/512/3075/3075977.png",
+    },
+  ];
+
   const handleCouponPress = (id) => {
     setSelectedCoupon(id);
     setTimeout(() => setSelectedCoupon(null), 200);
@@ -28,39 +45,57 @@ export default function HomeScreen() {
 
   return (
     <View style={[globalStyles.container, { padding: 0 }]}>
-      {/* Header */}
+
       <View style={styles.header}>
         <Text style={styles.headerTitle}>RappiFarma</Text>
         <Text style={styles.headerSubtitle}>Disponible 24/7</Text>
       </View>
 
-      {/* Cupones */}
-      <FlatList
-        data={coupons}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.couponList}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            activeOpacity={0.5}
-            onPress={() => handleCouponPress(item.id)}
-            style={[
-              styles.couponCard,
-              selectedCoupon === item.id && { opacity: 0.5 },
-            ]}
-          >
-            <View style={styles.iconBox}>
-              <Ionicons name="ticket-outline" size={28} color={theme.colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.couponTitle}>{item.title}</Text>
-              <Text style={styles.couponDesc}>{item.desc}</Text>
-              <Text style={styles.couponExp}>Válido hasta {item.exp}</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-      />
+   
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+        <FlatList
+          data={coupons}
+          keyExtractor={(item) => item.id}
+          scrollEnabled={false} 
+          contentContainerStyle={styles.couponList}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              activeOpacity={0.5}
+              onPress={() => handleCouponPress(item.id)}
+              style={[
+                styles.couponCard,
+                selectedCoupon === item.id && { opacity: 0.5 },
+              ]}
+            >
+              <View style={styles.iconBox}>
+                <Ionicons name="ticket-outline" size={28} color={theme.colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.couponTitle}>{item.title}</Text>
+                <Text style={styles.couponDesc}>{item.desc}</Text>
+                <Text style={styles.couponExp}>Válido hasta {item.exp}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        />
 
-      {/* Barra inferior */}
+      
+        <Text style={styles.sectionTitle}>Farmacias Patrocinadas</Text>
+
+        <View style={styles.farmaciasContainer}>
+          {farmacias.map((farmacia) => (
+            <View key={farmacia.id} style={styles.farmaciaCard}> 
+              <View style={{ flex: 1 }}>
+                <Text style={styles.farmaciaNombre}>{farmacia.nombre}</Text>
+                <Text style={styles.farmaciaDireccion}>{farmacia.direccion}</Text>
+                <Text style={styles.farmaciaHorario}>{farmacia.horario}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+
+     
       <View style={styles.bottomBar}>
         <Ionicons name="home-outline" size={24} color={theme.colors.primary} />
         <Ionicons name="search-outline" size={24} color={theme.colors.mutedForeground} />
@@ -71,10 +106,8 @@ export default function HomeScreen() {
         <Ionicons name="person-outline" size={24} color={theme.colors.mutedForeground} />
       </View>
 
-      {/* Preview de la foto */}
-      {photoUri && (
-        <Image source={{ uri: photoUri }} style={styles.previewImage} />
-      )}
+      
+      {photoUri && <Image source={{ uri: photoUri }} style={styles.previewImage} />}
     </View>
   );
 }
@@ -131,18 +164,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.xs,
     marginTop: 3,
   },
-  expiredTag: {
-    backgroundColor: "#fee2e2",
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: theme.borderRadius.sm,
-    alignSelf: "flex-start",
-    marginLeft: 6,
-  },
-  expiredText: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.destructive,
-  },
   bottomBar: {
     position: "absolute",
     bottom: 0,
@@ -178,5 +199,52 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     borderWidth: 2,
     borderColor: theme.colors.background,
+  },
+  sectionTitle: {
+    fontSize: theme.typography.fontSize["2xl"],
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.foreground,
+    marginTop: theme.spacing.xl,
+    marginBottom: theme.spacing.md,
+    borderBottomWidth: 2,
+    borderBottomColor: theme.colors.border,
+    paddingBottom: 4,
+  },
+  farmaciasContainer: {
+    paddingHorizontal: theme.spacing.md,
+    gap: theme.spacing.md,
+  },
+  farmaciaCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.lg,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+    marginBottom: theme.spacing.md,
+  },
+  farmaciaImg: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    marginRight: theme.spacing.md,
+  },
+  farmaciaNombre: {
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.foreground,
+  },
+  farmaciaDireccion: {
+    color: theme.colors.mutedForeground,
+    fontSize: theme.typography.fontSize.base,
+  },
+  farmaciaHorario: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.fontSize.sm,
+    marginTop: 2,
   },
 });

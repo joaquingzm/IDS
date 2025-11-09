@@ -10,6 +10,7 @@ import { COLECCION_USUARIOS, CAMPOS_USUARIO } from "../dbConfig";
 import { db, auth } from "../firebase";
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";  
 import { uploadImageToCloudinary } from "../context/uploadImage";
+import { useNavigation } from "@react-navigation/native";
 
 // Import de las  pantallas
 import LoginScreen from '../screens/LoginScreen';
@@ -46,11 +47,11 @@ function CustomTabBarButton({ children, onPress }) {
 
 function MainTabs() {
   const [photoUri, setPhotoUri] = useState(null);
+  const navigation = useNavigation();
   const handleCameraPress = async () => {
   console.log("Abrir cámara...");
   const uri = await openCameraAndTakePhoto();
   if (uri) {
-    //setPhotoUri(uri); Para que se vea abajo a la derecha, no hace falta;
     // ENVIAR AL BACKEND
     try {
       // DESPUÉS: PROCESAR OCR (código intacto como estaba)
@@ -72,7 +73,7 @@ function MainTabs() {
           type: "image/jpeg",
         });
       }
-
+        /*
       const res = await fetch("http://10.0.2.15:8001/ocr", {
         //IP LOCAL DE LA MAQUINA
         method: "POST",
@@ -85,8 +86,7 @@ function MainTabs() {
       if (resultOCR.resultado) {
         Alert.alert("Éxito", resultOCR.resultado); //RESULTADO DEL OCR!!, JSON HAY QUE VER COMO USARLO
       }
-
-
+*/
       console.log("Subiendo imagen a Cloudinary...");
       const imageUrl = await uploadImageToCloudinary(uri);
       console.log("Imagen subida con éxito:", imageUrl);
@@ -111,23 +111,40 @@ function MainTabs() {
           Alert.alert("Error", "No se encontró el usuario en la base de datos");
           return;
         }
-        console.log("Resultado de query usuarios:", querySnapshot.docs.map(d => d.data()));
+        console.log(
+          "Resultado de query usuarios:",
+          querySnapshot.docs.map((d) => d.data())
+        );
         const userData = querySnapshot.docs[0].data();
 
         // Crear el documento en "PedidosFarmacia"
         const docRef = await addDoc(collection(db, COLECCION_PEDIDO_FARMACIA), {
           [CAMPOS_PEDIDO_FARMACIA.IMAGEN]: imageUrl, // la URL de Cloudinary
-          [CAMPOS_PEDIDO_FARMACIA.NOMBRE_USUARIO]: userData[CAMPOS_USUARIO.NOMBRE],
-          [CAMPOS_PEDIDO_FARMACIA.APELLIDO_USUARIO]: userData[CAMPOS_USUARIO.APELLIDO],
-          [CAMPOS_PEDIDO_FARMACIA.DIRECCION]: userData[CAMPOS_USUARIO.DIRECCION],
-          [CAMPOS_PEDIDO_FARMACIA.OBRASOCIAL]: userData[CAMPOS_USUARIO.OBRASOCIAL],
+          [CAMPOS_PEDIDO_FARMACIA.NOMBRE_USUARIO]:
+            userData[CAMPOS_USUARIO.NOMBRE],
+          [CAMPOS_PEDIDO_FARMACIA.APELLIDO_USUARIO]:
+            userData[CAMPOS_USUARIO.APELLIDO],
+          [CAMPOS_PEDIDO_FARMACIA.DIRECCION]:
+            userData[CAMPOS_USUARIO.DIRECCION],
+          [CAMPOS_PEDIDO_FARMACIA.OBRASOCIAL]:
+            userData[CAMPOS_USUARIO.OBRASOCIAL],
           [CAMPOS_PEDIDO_FARMACIA.USER_ID]: currentUser.uid,
           [CAMPOS_PEDIDO_FARMACIA.FECHA_PEDIDO]: serverTimestamp(),
-          [CAMPOS_PEDIDO_FARMACIA.OCR]: resultOCR,
+         // [CAMPOS_PEDIDO_FARMACIA.OCR]: resultOCR,
         });
 
-        console.log("Pedido guardado en Firestore correctamente, id: "+docRef.id);
-        Alert.alert("Éxito", "Pedido creado correctamente");
+        console.log("Pedido guardado en Firestore correctamente, id: " + docRef.id);
+
+                    if (Platform.OS === 'web') {
+          window.alert("Pedido registrado.\nEstamos esperando ofertas hechas por las farmacias.");
+          navigation.navigate("OfertsPending");
+        } else {
+          Alert.alert(
+            "Pedido registrado",
+            "Estamos esperando ofertas hechas por las farmacias",
+            [{ text: "OK", onPress: () => navigation.navigate("OfertsPending") }]
+          );
+        }
       } catch (firestoreError) {
         console.error(" Error guardando pedido en Firestore:", firestoreError);
         Alert.alert("Error", "No se pudo guardar el pedido en la base de datos");
@@ -139,8 +156,8 @@ function MainTabs() {
       Alert.alert("Error", "No se pudo procesar la imagen");
     }
   }
-
 };
+
 
   return (<View style={styles.container}>
       <Tab.Navigator
