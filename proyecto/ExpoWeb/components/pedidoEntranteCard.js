@@ -37,6 +37,16 @@ export default function CardPedidoEntrante({ pedido }) {
       await updatePedido(pedido.id, {
         [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.PENDIENTE,
       });
+
+      await crearOferta(pedido.id,{
+        [CAMPOS_OFERTA.FARMACIA_ID]: pedidoData.farmaciaId || "",
+        [CAMPOS_OFERTA.NOMBRE_FARMACIA]: pedidoData.nombreFarmacia || "",
+        [CAMPOS_OFERTA.MONTO]: pedidoData.monto || 0,
+        [CAMPOS_OFERTA.MEDICAMENTO]: pedidoData.medicamento || [],
+        [CAMPOS_OFERTA.TIEMPO_ESPERA]: pedidoData.tiempoEspera || null,
+        [CAMPOS_OFERTA.FECHA_OFERTA]: serverTimestamp(),
+        [CAMPOS_OFERTA.ESTADO]: ESTADOS_OFERTA?.PENDIENTE || "pendiente",
+      });
      
       
 

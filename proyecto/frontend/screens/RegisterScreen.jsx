@@ -1,14 +1,13 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ScrollView } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ScrollView, Alert, Platform } from "react-native";
 import { theme } from "../styles/theme";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
-import { COLECCION_USUARIOS, CAMPOS_USUARIO } from "../dbConfig";
 import useNav from "../hooks/UseNavigation";
-import Logo from "../assets/LogoRappiFarma.png"; // mismo logo que en Login
+import { crearUsuario } from "../utils/firestoreService";
 
-export default function RegisterScreen({ navigation }) {
+
+export default function RegisterScreen() {
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
   const [email, setEmail] = useState("");
@@ -17,34 +16,67 @@ export default function RegisterScreen({ navigation }) {
   const [obraSocial, setObraSocial] = useState("");
   const [direccion, setDireccion] = useState("");
 
-  const { goLogin } = useNav();
+ 
+  
 
-  const handleRegister = async () => {
-    try {
-      const UserCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = UserCredential.user;
+ const handleRegister = async () => {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
 
-      await setDoc(doc(db, COLECCION_USUARIOS, user.uid), {
-        [CAMPOS_USUARIO.EMAIL]: email,
-        [CAMPOS_USUARIO.NOMBRE]: nombre,
-        [CAMPOS_USUARIO.APELLIDO]: apellido,
-        [CAMPOS_USUARIO.DNI]: dni,
-        [CAMPOS_USUARIO.OBRASOCIAL]: obraSocial || "",
-        [CAMPOS_USUARIO.ROL]: "cliente",
-        [CAMPOS_USUARIO.FECHA_REGISTRO]: new Date(),
-        [CAMPOS_USUARIO.DIRECCION]: direccion,
-      });
+    await crearUsuario(
+      { email, nombre, apellido, rol: "cliente", obraSocial, dni, direccion },
+      user.uid 
+    );
 
-      alert("Registro exitoso");
-      goLogin();
-    } catch (error) {
+   
+    if (Platform.OS === 'web') {
+      window.alert("Registro exitoso\nTu cuenta se creó correctamente");
+      navigation.navigate("Login");
+    } else {
+   
+      Alert.alert(
+        "Registro exitoso", 
+        "Tu cuenta se creó correctamente", 
+        [
+          { 
+            text: "OK", 
+            onPress: () => navigation.navigate("Login") 
+          }
+        ]
+      );
+    }
+
+  } catch (error) {
+    
+    if (Platform.OS === 'web') {
       if (error.code === "auth/email-already-in-use") {
-        alert("Este correo ya está registrado. Iniciá sesión o usá otro correo.");
+        window.alert("Correo ya registrado\nEste correo ya está registrado. Iniciá sesión o usá otro correo.");
+      } else if (error.code === "auth/weak-password") {
+        window.alert("Contraseña débil\nLa contraseña debe tener al menos 6 caracteres");
+      } else if (error.code === "auth/invalid-email") {
+        window.alert("Email inválido\nEl formato del email no es correcto");
       } else {
-        alert("Error al registrar el usuario: " + error.message);
+        window.alert("Error: " + error.message);
+      }
+    } else {
+    
+      if (error.code === "auth/email-already-in-use") {
+        Alert.alert(
+          "Correo ya registrado",
+          "Este correo ya está registrado. Iniciá sesión o usá otro correo."
+        );
+      } else if (error.code === "auth/weak-password") {
+        Alert.alert("Error", "La contraseña debe tener al menos 6 caracteres");
+      } else if (error.code === "auth/invalid-email") {
+        Alert.alert("Error", "El email no tiene un formato válido");
+      } else {
+        Alert.alert("Error al registrar usuario", error.message);
       }
     }
-  };
+  }
+};
+
 
   return (
     <ScrollView contentContainerStyle={styles.scroll}>

@@ -203,7 +203,7 @@ function ofertasCollectionRef(pedidoId) {
 }
 
 export async function crearOferta(pedidoId, pedidoData) {
-    const colRef = ofertasCollectionRef(orderId);
+    const colRef = ofertasCollectionRef(pedidoId);
 
     const payload = {
         [CAMPOS_OFERTA.FARMACIA_ID]: pedidoData.farmaciaId || "",
