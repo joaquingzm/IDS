@@ -2,64 +2,110 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { theme } from '../styles/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { db, auth } from '../firebase'; 
-import { collection, query, getDocs, where } from 'firebase/firestore'; 
-import OfertaCard from '../components/OfertaCard'; 
-import { COLECCION_OFERTA, CAMPOS_Oferta } from '../dbConfig';
+import { auth } from '../firebase'; 
+import {  ESTADOS_PEDIDO } from '../dbConfig';
+import { listPedidosByUser, listOfertasForPedido,} from "../utils/firestoreService";
+import OfertaCard from "../components/OfertaCard";
+
 
 export default function OfertasUsuarioScreen({ navigation }) {
-  const [ofertas, setOfertas] = useState([]);
+  const [pedidosConOfertas, setPedidosConOfertas] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchOfertas = async () => {
+    const cargarPedidosYOfertas = async () => {
       setLoading(true);
       try {
         const currentUserId = auth.currentUser ? auth.currentUser.uid : null;
         if (!currentUserId) {
-          setOfertas([]);
+          setPedidosConOfertas([]);
           setLoading(false);
           return;
         }
 
-        // 🔎 Consulta Firestore usando tus constantes
-        const q = query(
-          collection(db, COLECCION_OFERTA),
-          where(CAMPOS_Oferta.USER_ID, "==", currentUserId)
-        );
+        // Agarro TODOS los pedidos del usuario
+        const pedidos = await listPedidosByUser(currentUserId);
         
-        const querySnapshot = await getDocs(q);
-        const lista = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        // Filtro los pedidos de estado pendiente
+        const pedidosPendientes = pedidos.filter(pedido => 
+          pedido.estado === ESTADOS_PEDIDO.PENDIENTE
+        );
 
-        setOfertas(lista);
+        // Para cada pedido pendiente obtengo sus ofertas
+        const pedidosConOfertasData = [];
+        
+        for (const pedido of pedidosPendientes) {
+          try {
+            const ofertas = await listOfertasForPedido(pedido.id);
+            
+            // Filtro solo ofertas de estado pendiente
+            const ofertasPendientes = ofertas.filter(oferta => 
+              oferta.estado === 'pendiente'
+            );
+
+            if (ofertasPendientes.length > 0) {
+              pedidosConOfertasData.push({
+                ...pedido,
+                ofertas: ofertasPendientes
+              });
+            }
+          } catch (error) {
+            console.error(`Error cargando ofertas para pedido ${pedido.id}:`, error);
+          }
+        }
+
+        setPedidosConOfertas(pedidosConOfertasData);
+        setLoading(false);
+
       } catch (error) {
-        console.error("Error cargando ofertas: ", error);
-        Alert.alert("Error", "No se pudo cargar la lista de ofertas.");
+        console.error("Error cargando pedidos: ", error);
+        Alert.alert("Error", "No se pudo cargar la lista de pedidos.");
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    fetchOfertas();
+    cargarPedidosYOfertas();
   }, []);
 
-  const renderOfertas = () => {
+  const contarOfertasTotales = () => {
+    return pedidosConOfertas.reduce((total, pedido) => total + pedido.ofertas.length, 0);
+  };
+
+  const renderPedidosConOfertas = () => {
     if (loading) {
       return <ActivityIndicator size="large" color={theme.colors.primary} />;
     }
 
-    if (ofertas.length === 0) {
+    if (pedidosConOfertas.length === 0) {
       return (
-        <Text style={styles.emptyText}>
-          No tienes ofertas disponibles por ahora.
-        </Text>
+        <View style={styles.emptyState}>
+          <Ionicons name="cube-outline" size={64} color={theme.colors.mutedForeground} />
+          <Text style={styles.emptyText}>
+            No tienes ofertas disponibles por ahora.
+          </Text>
+          <Text style={styles.emptySubtext}>
+            Cuando las farmacias hagan ofertas para tus pedidos, aparecerán aquí.
+          </Text>
+        </View>
       );
     }
 
-    return ofertas.map(oferta => (
-      <OfertaCard key={oferta.id} pedido={oferta} />
+    return pedidosConOfertas.map(pedido => (
+      <View key={pedido.id} style={styles.pedidoContainer}>
+        <Text style={styles.pedidoTitle}>
+          Pedido del {pedido.fechaPedido?.toDate?.().toLocaleDateString() || 'Fecha no disponible'}
+        </Text>
+        <Text style={styles.pedidoEstado}>Estado: {pedido.estado}</Text>
+        
+        {pedido.ofertas.map(oferta => (
+          <OfertaCard 
+            key={oferta.id} 
+            oferta={oferta} 
+            pedidoId={pedido.id}
+            pedidoData={pedido}
+          />
+        ))}
+      </View>
     ));
   };
 
@@ -82,13 +128,13 @@ export default function OfertasUsuarioScreen({ navigation }) {
         <Text style={styles.alertText}>
           {loading 
             ? "Cargando ofertas..." 
-            : `Tienes ${ofertas.length} ofertas disponibles`}
+            : `Tienes ${contarOfertasTotales()} ofertas en ${pedidosConOfertas.length} pedidos`}
         </Text>
       </View>
 
       {/* Listado de ofertas */}
       <ScrollView style={styles.content}>
-        {renderOfertas()}
+        {renderPedidosConOfertas()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -135,10 +181,39 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.sm,
     color: '#1e40af',
   },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
   emptyText: {
     textAlign: 'center',
     color: theme.colors.mutedForeground,
-    marginTop: 40,
-    fontSize: 16,
+    marginTop: 16,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  emptySubtext: {
+    textAlign: 'center',
+    color: theme.colors.mutedForeground,
+    marginTop: 8,
+    fontSize: 14,
+  },
+  pedidoContainer: {
+    marginBottom: theme.spacing.lg,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.borderRadius.lg,
+  },
+  pedidoTitle: {
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.foreground,
+    marginBottom: 4,
+  },
+  pedidoEstado: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.mutedForeground,
+    marginBottom: theme.spacing.md,
   },
 });

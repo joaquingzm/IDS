@@ -30,6 +30,7 @@ export const CAMPOS_USUARIO = {
   OBRASOCIAL: "obraSocial",
   DNI: "dni",
   DIRECCION: "direccion",
+  ROL: "rol",
 };
 
 
@@ -42,6 +43,7 @@ export const CAMPOS_FARMACIA = {
   DIRECCION: "Direccion",
   FECHA_REGISTRO: "fechaRegistro",
   TELEFONO: "Telefono comercial",
+  ROL:"rol",
 };
 
 
