@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from "react-native";
 import { AuthContext } from "../context/AuthContext";
 import { theme } from "../styles/theme";
@@ -18,31 +19,70 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { COLECCION_USUARIOS } from "../dbConfig";
+import firestoreService from "../utils/firestoreService";
 
 export default function LoginScreen({ navigation }) {
   const { login } = useContext(AuthContext);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { goRegister } = useNav();
+  const [loading, setLoading] = useState(false);
+
 
   async function handleLogin() {
+    
+    if (!email || !password) {
+      Alert.alert("Error", "Completá email y contraseña");
+      return;
+    }
+
+    setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
+      const uid = user.uid;
 
-      const clienteRef = doc(db, COLECCION_USUARIOS, user.uid);
-      const clienteSnap = await getDoc(clienteRef);
+      // Usamos el servicio centralizado para obtener el documento del usuario
+      let usuario = null;
+      try {
+        if (typeof firestoreService.getUsuarioByUid === "function") {
+          usuario = await firestoreService.getUsuarioByUid(uid);
+        }
+      } catch (err) {
+        console.warn("Error obteniendo usuario desde firestoreService:", err);
+      }
 
-      if (clienteSnap.exists()) {
-        navigation.replace("MainAppTabs");
+      if (!usuario) {
+        // No existe el perfil en la colección de usuarios -> desloguear y avisar
+        await auth.signOut();
+        Alert.alert("Error", "Email o contraseña incorrectos (sin perfil)");
+        setLoading(false);
         return;
       }
 
-      await auth.signOut();
-      alert("Email o contraseña incorrectos");
+      // Opcional: si querés validar rol, descomenta esto
+      // if ((usuario.rol || usuario[CAMPOS_USUARIO.ROL]) !== "user") {
+      //   await auth.signOut();
+      //   Alert.alert("Error", "Esta cuenta no es de tipo usuario.");
+      //   setLoading(false);
+      //   return;
+      // }
+
+      // Guardar en contexto (si existe)
+      try {
+        if (typeof login === "function") {
+          login({ uid, email: user.email, profile: usuario });
+        }
+      } catch (err) {
+        console.warn("AuthContext.login falló:", err);
+      }
+
+      navigation.replace("MainAppTabs");
     } catch (error) {
-      console.log("Error al iniciar sesión:", error.message);
-      alert("Email o contraseña incorrectos");
+      console.log("Error al iniciar sesión:", error?.message ?? error);
+      Alert.alert("Error", "Email o contraseña incorrectos");
+    } finally {
+      setLoading(false);
     }
   }
 
