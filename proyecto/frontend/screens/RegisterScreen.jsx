@@ -15,7 +15,7 @@ export default function RegisterScreen() {
   const [dni, setDni] = useState("");
   const [obraSocial, setObraSocial] = useState("");
   const [direccion, setDireccion] = useState("");
-
+  const {navigation} = useNav();
  
   
 

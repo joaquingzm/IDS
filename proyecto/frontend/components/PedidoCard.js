@@ -1,26 +1,26 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../styles/theme";
-import { CAMPOS_PEDIDO_USUARIO } from "../dbConfig";
+import { CAMPOS_FARMACIA, CAMPOS_OFERTA, CAMPOS_PEDIDO } from "../dbConfig";
 
-export default function PedidoUsuarioCard({ pedido }) {
+export default function PedidoUsuarioCard({ pedido, oferta, farmacia }) {
   return (
     <View style={styles.card}>
       <View style={styles.infoContainer}>
         <Text style={styles.title}>
-          Estado: {pedido[CAMPOS_PEDIDO_USUARIO.ESTADO] || "Desconocido"}
+          Estado: {pedido[CAMPOS_PEDIDO.ESTADO] || "Desconocido"}
         </Text>
 
         <Text style={styles.text}>
-          Farmacia: {pedido[CAMPOS_PEDIDO_USUARIO.NOMBRE_FARMACIA]}
+          Farmacia: {farmacia[CAMPOS_FARMACIA.NOMBRE]}
         </Text>
 
         <Text style={styles.text}>
-          Medicamentos: {pedido[CAMPOS_PEDIDO_USUARIO.MEDICAMENTOS]}
+          Medicamentos: {oferta[CAMPOS_OFERTA.MEDICAMENTO]}
         </Text>
 
         <Text style={styles.text}>
-          Fecha de pedido: {pedido[CAMPOS_PEDIDO_USUARIO.FECHA_PEDIDO]}
+          Fecha de pedido: {oferta[CAMPOS_OFERTA.FECHA_OFERTA]}
         </Text>
       </View>
     </View>

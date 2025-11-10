@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { theme } from "../styles/theme";
 import { db } from "../firebase";
-import { doc, setDoc, deleteDoc } from "firebase/firestore";
-import { COLECCION_PEDIDO_HISTORIAL, CAMPOS_PEDIDO_HISTORIAL } from "../dbConfig";
+import { doc, updateDoc } from "firebase/firestore";
+import { COLECCION_PEDIDO, CAMPOS_PEDIDO, ESTADOS_PEDIDO } from "../dbConfig";
 
 export default function PedidoActivaCard({ pedidoData, onPedidoEliminado }) {
   const [pedido, setPedido] = useState(pedidoData);
@@ -12,38 +12,49 @@ export default function PedidoActivaCard({ pedidoData, onPedidoEliminado }) {
 
   const moverAHistorial = async () => {
     if (procesando) return;
-    
     setProcesando(true);
-    try {
-      // Crear documento en PedidosHistorial
-      const pedidoHistorial = {
-        [CAMPOS_PEDIDO_HISTORIAL.NOMBRE_USUARIO]: pedido.nombreUsuario || "",
-        [CAMPOS_PEDIDO_HISTORIAL.APELLIDO_USUARIO]: pedido.apellidoUsuario || "",
-        [CAMPOS_PEDIDO_HISTORIAL.DIRECCION]: pedido.direccionUsuario || "",
-        [CAMPOS_PEDIDO_HISTORIAL.USER_ID]: pedido.userId || "",
-        [CAMPOS_PEDIDO_HISTORIAL.OBRASOCIAL]: pedido.obraSocialUsuario || "",
-        [CAMPOS_PEDIDO_HISTORIAL.FECHA_PEDIDO]: pedido.fechaPedido || new Date(),
-        [CAMPOS_PEDIDO_HISTORIAL.MEDICAMENTOS]: pedido.Medicamentos || "",
-        [CAMPOS_PEDIDO_HISTORIAL.MONTO]: pedido.Monto || "",
-        fechaFinalizacion: new Date(),
-        estado: "Finalizado"
-      };
 
-      await setDoc(doc(db, COLECCION_PEDIDO_HISTORIAL, pedido.id), pedidoHistorial);
-      
-      // CORREGIDO: Borrar de "PedidosAceptados" en lugar de "PedidosActivos"
-      await deleteDoc(doc(db, "PedidosAceptados", pedido.id));
-      
-      console.log("✅ Pedido movido a historial correctamente");
-      
-      // Notificar al padre que este pedido fue eliminado
-      if (onPedidoEliminado) {
-        onPedidoEliminado(pedido.id);
-      }
-      
+    try {
+      const pedidoRef = doc(db, COLECCION_PEDIDO, pedido.id);
+
+      await updateDoc(pedidoRef, {
+        [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.REALIZADO,
+      });
+
+      setPedido((prev) => ({ ...prev, estado: "Finalizado" }));
+      console.log(" Pedido marcado como realizado en Firestore");
+
+      if (onPedidoEliminado) onPedidoEliminado(pedido.id);
+
+      Alert.alert("Pedido completado", "El pedido fue finalizado correctamente.");
     } catch (error) {
-      console.error("❌ Error al mover pedido a historial:", error);
-      Alert.alert("Error", "No se pudo completar el pedido");
+      console.error(" Error al actualizar pedido:", error);
+      Alert.alert("Error", "No se pudo marcar el pedido como finalizado.");
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+ 
+  const cancelarPedido = async () => {
+    if (procesando) return;
+    setProcesando(true);
+
+    try {
+      const pedidoRef = doc(db, COLECCION_PEDIDO, pedido.id);
+
+      await updateDoc(pedidoRef, {
+        [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.RECHAZADO,
+      });
+
+      setPedido((prev) => ({ ...prev, estado: "Rechazado" }));
+
+      if (onPedidoEliminado) onPedidoEliminado(pedido.id);
+
+      Alert.alert("Pedido rechazado", "El pedido fue marcado como rechazado correctamente.");
+    } catch (error) {
+      console.error("Error al rechazar pedido:", error);
+      Alert.alert("Error", "No se pudo rechazar el pedido.");
     } finally {
       setProcesando(false);
     }
@@ -51,24 +62,18 @@ export default function PedidoActivaCard({ pedidoData, onPedidoEliminado }) {
 
   const avanzarEstado = () => {
     const siguienteEstado = {
-      "Pendiente": "En camino",
-      "En camino": "Entregado", 
-      "Entregado": "Finalizado",
+      Pendiente: "En camino",
+      "En camino": "Entregado",
+      Entregado: "Finalizado",
     }[pedido.estado || "Pendiente"];
 
     if (siguienteEstado) {
-      // Si el siguiente estado es "Finalizado", mover a historial
       if (siguienteEstado === "Finalizado") {
         moverAHistorial();
       } else {
-        // Solo actualizar el estado local
         setPedido((prev) => ({ ...prev, estado: siguienteEstado }));
       }
     }
-  };
-
-  const cancelarPedido = () => {
-    setPedido((prev) => ({ ...prev, estado: "Cancelado" }));
   };
 
   const producto = pedido.Medicamentos || "Medicamentos no especificados";
@@ -82,27 +87,27 @@ export default function PedidoActivaCard({ pedidoData, onPedidoEliminado }) {
       style={[
         styles.card,
         pedido.estado === "Finalizado" && styles.cardFinalizado,
-        pedido.estado === "Cancelado" && styles.cardCancelado,
+        pedido.estado === "Rechazado" && styles.cardCancelado,
         procesando && styles.cardProcesando,
       ]}
       onPress={() => setExpandido(!expandido)}
       activeOpacity={0.8}
       disabled={procesando}
     >
-
       <View style={styles.infoContainer}>
         <Text style={styles.title}>Pedido #{pedido.id?.substring(0, 8) || "N/A"}</Text>
-       
+
         <View style={styles.detallesContainer}>
           <Text style={styles.text}><Text style={styles.label}>Cliente:</Text> {cliente}</Text>
           <Text style={styles.text}><Text style={styles.label}>Dirección:</Text> {direccion}</Text>
           <Text style={styles.text}><Text style={styles.label}>Obra social:</Text> {obraSocial}</Text>
           <Text style={styles.text}><Text style={styles.label}>Monto:</Text> {monto}</Text>
           <Text style={styles.text}><Text style={styles.label}>Medicamentos:</Text> {producto}</Text>
-          
+
           {pedido.fechaPedido && (
             <Text style={styles.text}>
-              <Text style={styles.label}>Fecha:</Text> {pedido.fechaPedido.toDate?.().toLocaleDateString() || "Fecha no disponible"}
+              <Text style={styles.label}>Fecha:</Text>{" "}
+              {pedido.fechaPedido.toDate?.().toLocaleDateString() || "Fecha no disponible"}
             </Text>
           )}
         </View>
@@ -113,14 +118,14 @@ export default function PedidoActivaCard({ pedidoData, onPedidoEliminado }) {
             (pedido.estado === "Pendiente" || !pedido.estado) && { color: theme.colors.primary },
             pedido.estado === "En camino" && { color: theme.colors.secondaryForeground },
             pedido.estado === "Entregado" && { color: theme.colors.success },
-            pedido.estado === "Cancelado" && { color: theme.colors.destructive },
+            pedido.estado === "Rechazado" && { color: theme.colors.destructive },
             procesando && { color: theme.colors.mutedForeground },
           ]}
         >
-          Estado: {procesando ? "Procesando..." : (pedido.estado || "Pendiente")}
+          Estado: {procesando ? "Procesando..." : pedido.estado || "Pendiente"}
         </Text>
 
-        {expandido && pedido.estado !== "Finalizado" && pedido.estado !== "Cancelado" && !procesando && (
+        {expandido && pedido.estado !== "Finalizado" && pedido.estado !== "Rechazado" && !procesando && (
           <View style={styles.botonesContainer}>
             <TouchableOpacity
               style={[styles.boton, styles.botonPrimario]}
@@ -137,21 +142,19 @@ export default function PedidoActivaCard({ pedidoData, onPedidoEliminado }) {
               onPress={cancelarPedido}
               disabled={procesando}
             >
-              <Text style={styles.botonTexto}>Cancelar</Text>
+              <Text style={styles.botonTexto}>Rechazar</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {procesando && (
-          <Text style={styles.procesando}>Moviendo a historial...</Text>
-        )}
+        {procesando && <Text style={styles.procesando}>Actualizando pedido...</Text>}
 
         {pedido.estado === "Finalizado" && !procesando && (
-          <Text style={styles.finalizado}> Pedido completado</Text>
+          <Text style={styles.finalizado}>Pedido completado</Text>
         )}
 
-        {pedido.estado === "Cancelado" && !procesando && (
-          <Text style={styles.cancelado}> Pedido cancelado</Text>
+        {pedido.estado === "Rechazado" && !procesando && (
+          <Text style={styles.cancelado}>Pedido rechazado</Text>
         )}
       </View>
     </TouchableOpacity>
@@ -175,28 +178,24 @@ const styles = StyleSheet.create({
   },
   cardFinalizado: {
     opacity: 0.8,
-    backgroundColor: theme.colors.success + "20", 
+    backgroundColor: theme.colors.success + "20",
   },
   cardCancelado: {
     opacity: 0.6,
-    backgroundColor: theme.colors.destructive + "20", 
+    backgroundColor: theme.colors.destructive + "20",
   },
   cardProcesando: {
     opacity: 0.7,
     backgroundColor: theme.colors.muted + "20",
   },
-  infoContainer: {
-    flex: 1,
-  },
+  infoContainer: { flex: 1 },
   title: {
     fontSize: theme.typography.fontSize.lg,
     fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.foreground,
     marginBottom: 4,
   },
-  detallesContainer: {
-    marginBottom: 8,
-  },
+  detallesContainer: { marginBottom: 8 },
   text: {
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.mutedForeground,
@@ -223,12 +222,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     alignItems: "center",
   },
-  botonPrimario: {
-    backgroundColor: theme.colors.primary,
-  },
-  botonSecundario: {
-    backgroundColor: theme.colors.destructive,
-  },
+  botonPrimario: { backgroundColor: theme.colors.primary },
+  botonSecundario: { backgroundColor: theme.colors.destructive },
   botonTexto: {
     color: "#fff",
     fontWeight: theme.typography.fontWeight.medium,

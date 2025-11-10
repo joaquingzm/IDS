@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet,SafeAreaView,TouchableOpacity,ScrollView,Alert,
+import {
+  View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert,
   ActivityIndicator // Para mostrar que está cargando
 } from 'react-native';
 import { theme } from '../styles/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { db, auth } from '../firebase'; 
-import { collection, query, getDocs, where } from 'firebase/firestore'; 
+import { db, auth } from '../firebase';
+import { collection, query, getDocs, where } from 'firebase/firestore';
 import HistorialCard from '../components/PedidoHistorialCard';
-import { COLECCION_HISTORIAL_PEDIDO, CAMPOS_HISTORIAL } from "../dbConfig";
+import { COLECCION_PEDIDO, CAMPOS_PEDIDO, ESTADOS_PEDIDO } from "../dbConfig";
+import { listPedidosByUser } from '../utils/firestoreService';
 
 
 
@@ -26,17 +28,35 @@ export default function OrderHistoryScreen({ navigation }) {
           return;
         }
 
-        const q = query(
-          collection(db, COLECCION_HISTORIAL_PEDIDO),
-          where(CAMPOS_HISTORIAL.USER_ID, "==", currentUserId)
+        const allPedidos = await listPedidosByUser(currentUserId);
+
+
+        const pedidosRealizados = allPedidos.filter(
+          (p) => (p[CAMPOS_PEDIDO.ESTADO] ?? p.estado) === ESTADOS_PEDIDO.REALIZADO
         );
 
-        const querySnapshot = await getDocs(q);
-        const lista = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setPedidos(lista);
+        const pedidosEnriquecidos = await Promise.all(
+          pedidosRealizados.map(async (pedido) => {
+            try {
+              const ofertas = await firestoreService.listOfertasForPedido(pedido.id);
+              const ofertaGanadora = ofertas.find(
+                (of) => of[CAMPOS_OFERTA.ESTADO] === "ACEPTADA"
+              );
+
+              let farmacia = null;
+              if (ofertaGanadora?.farmaciaId) {
+                farmacia = await firestoreService.getFarmaciaById(ofertaGanadora.farmaciaId);
+              }
+
+              return { pedido, oferta: ofertaGanadora, farmacia };
+            } catch (err) {
+              console.warn("Error al enriquecer pedido:", pedido.id, err);
+              return { pedido, oferta: null, farmacia: null };
+            }
+          })
+        );
+
+        setPedidos(pedidosEnriquecidos);
       } catch (error) {
         console.error("Error cargando historial: ", error);
         Alert.alert("Error", "No se pudo cargar el historial.");
@@ -49,25 +69,30 @@ export default function OrderHistoryScreen({ navigation }) {
 
 
   const renderPedidos = () => {
-  if (loading) {
-    return <ActivityIndicator size="large" color={theme.colors.primary} />;
-  }
+    if (loading) {
+      return <ActivityIndicator size="large" color={theme.colors.primary} />;
+    }
 
-  if (pedidos.length > 0) {
-    return pedidos.map((pedido) => (
-      <HistorialCard key={pedido.id} pedido={pedido} />
-    ));
-  } else {
-    return (
-      <View style={{ alignItems: "center", marginTop: 40 }}>
-        <Ionicons name="document-text-outline" size={40} color={theme.colors.mutedForeground} />
-        <Text style={styles.emptyText}>No tienes pedidos en tu historial</Text>
-      </View>
-    );
-  }
-};
+    if (pedidos.length > 0) {
+      return pedidosCompletos.map(({ pedido, oferta, farmacia }) => (
+        <HistorialCard
+          key={pedido.id}
+          pedido={pedido}
+          oferta={oferta}
+          farmacia={farmacia}
+        />
+      ));
+    } else {
+      return (
+        <View style={{ alignItems: "center", marginTop: 40 }}>
+          <Ionicons name="document-text-outline" size={40} color={theme.colors.mutedForeground} />
+          <Text style={styles.emptyText}>No tienes pedidos en tu historial</Text>
+        </View>
+      );
+    }
+  };
 
- return (
+  return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <TouchableOpacity

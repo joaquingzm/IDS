@@ -1,36 +1,60 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
-  ScrollView, 
-  Switch, 
+// screens/ProfileScreen.jsx
+import React, { useState, useContext, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Switch,
   TextInput,
   Alert,
-  SafeAreaView 
+  SafeAreaView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../styles/theme'; // Asumo que la ruta es correcta
-import { auth } from '../firebase'; // Importamos 'auth'
-import { signOut } from 'firebase/auth'; // Importamos la función 'signOut'
+import { theme } from '../styles/theme';
+import { auth } from '../firebase';
+import { signOut } from 'firebase/auth';
+import { AuthContext } from '../context/AuthContext';
+import { CAMPOS_USUARIO } from '../dbConfig';
+import firestoreService from '../utils/firestoreService'; // ruta según tu proyecto
 
-// Este componente recibe 'navigation' automáticamente desde AppNavigator
 export default function ProfileScreen({ navigation }) {
-  // Estados para los switches (simulados)
   const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
   const [dontSaveCredentials, setDontSaveCredentials] = useState(false);
 
-  // Función para simular el "toast" de Sonner (usamos Alert nativo)
+  const { user } = useContext(AuthContext); // user = { uid, email, profile } si lo guardaste en Login
+  const [profile, setProfile] = useState(user?.profile ?? null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+
+  useEffect(() => {
+    // si no hay profile en el contexto, intentar obtenerlo desde Firestore
+    async function fetchProfileIfMissing() {
+      if (!profile && auth.currentUser) {
+        setLoadingProfile(true);
+        try {
+          if (typeof firestoreService.getUsuarioByUid === 'function') {
+            const p = await firestoreService.getUsuarioByUid(auth.currentUser.uid);
+            if (p) setProfile(p);
+          }
+        } catch (err) {
+          console.warn('No se pudo obtener perfil desde Firestore:', err);
+        } finally {
+          setLoadingProfile(false);
+        }
+      }
+    }
+    fetchProfileIfMissing();
+  }, [profile]);
+
   const showToast = (message) => {
     Alert.alert("Información", message);
   };
 
-  // Función para manejar el logout
   const handleLogout = () => {
     signOut(auth)
       .then(() => {
-        navigation.replace('Login'); 
+        navigation.replace('Login');
       })
       .catch((error) => {
         console.error("Error al cerrar sesión: ", error);
@@ -38,26 +62,37 @@ export default function ProfileScreen({ navigation }) {
       });
   };
 
+  // helpers para leer campos con fallback (soportando distintas estructuras)
+  const getField = (keyConst, altKey) => {
+    if (!profile) return '';
+    // profile puede venir como { nombre: 'X' } o { nombreUsuario: 'X' } u otras keys,
+    // probamos con la constante y con altKey y con la misma key en camelCase
+    return profile[keyConst] ?? profile[altKey] ?? profile[altKey?.toLowerCase()] ?? profile[keyConst?.toLowerCase()] ?? '';
+  };
+
+  const nombre = getField(CAMPOS_USUARIO.NOMBRE, 'nombre');
+  const apellido = getField(CAMPOS_USUARIO.APELLIDO, 'apellido');
+  const dni = getField(CAMPOS_USUARIO.DNI, 'dni');
+  const email = auth.currentUser?.email ?? getField(CAMPOS_USUARIO.EMAIL, 'email');
+  const direccion = getField(CAMPOS_USUARIO.DIRECCION, 'direccion');
+  const obraSocial = getField(CAMPOS_USUARIO.OBRASOCIAL, 'obraSocial');
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header Naranja (estilo de tu app) */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()} 
+          onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Perfil y configuración</Text>
       </View>
 
-      {/* Contenido con Scroll */}
-      <ScrollView 
+      <ScrollView
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
       >
-        
-        {/* ---- Card de Seguridad ---- */}
         <Text style={styles.sectionTitle}>Seguridad</Text>
         <View style={styles.card}>
           <View style={styles.settingItem}>
@@ -66,7 +101,7 @@ export default function ProfileScreen({ navigation }) {
               <Text style={styles.settingLabel}>Autenticación biométrica</Text>
               <Text style={styles.settingDescription}>Usa huella o Face ID</Text>
             </View>
-            <Switch 
+            <Switch
               value={isBiometricEnabled}
               onValueChange={setIsBiometricEnabled}
               thumbColor={isBiometricEnabled ? theme.colors.primary : "#f4f3f4"}
@@ -82,14 +117,14 @@ export default function ProfileScreen({ navigation }) {
               <Text style={styles.settingLabel}>No guardar credenciales</Text>
               <Text style={styles.settingDescription}>Mayor seguridad</Text>
             </View>
-            <Switch 
+            <Switch
               value={dontSaveCredentials}
               onValueChange={setDontSaveCredentials}
               thumbColor={dontSaveCredentials ? theme.colors.primary : "#f4f3f4"}
               trackColor={{ false: "#767577", true: theme.colors.accent }}
             />
           </View>
-          
+
           <View style={styles.separator} />
 
           <TouchableOpacity style={styles.outlineButton}>
@@ -97,35 +132,37 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* ---- Card de Información de Cuenta ---- */}
         <Text style={styles.sectionTitle}>Información de cuenta</Text>
         <View style={styles.card}>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Nombre</Text>
-            <TextInput value="María" editable={false} style={styles.input} />
+            <TextInput value={nombre} editable={false} style={styles.input} />
           </View>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Apellido</Text>
-            <TextInput value="González" editable={false} style={styles.input} />
+            <TextInput value={apellido} editable={false} style={styles.input} />
           </View>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>DNI</Text>
-            <TextInput value="38.456.789" editable={false} style={styles.input} />
+            <TextInput value={dni} editable={false} style={styles.input} />
           </View>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Mail</Text>
-            <TextInput value={auth.currentUser ? auth.currentUser.email : "..."} editable={false} style={styles.input} />
+            <TextInput value={email} editable={false} style={styles.input} />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Dirección</Text>
+            <TextInput value={direccion} editable={false} style={styles.input} />
           </View>
         </View>
 
-        {/* ---- Card de Obra Social ---- */}
         <Text style={styles.sectionTitle}>Obra Social</Text>
         <View style={styles.card}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nro de afiliado</Text>
-            <TextInput value="123456789" editable={false} style={styles.input} />
+            <Text style={styles.label}>Obra social</Text>
+            <TextInput value={obraSocial} editable={false} style={styles.input} />
           </View>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.outlineButton}
             onPress={() => showToast('Función de actualización de obra social próximamente disponible')}
           >
@@ -140,15 +177,14 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ---- Botones de Acción Finales ---- */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.outlineButton}
           onPress={() => showToast('Redirigiendo a cambiar contraseña')}
         >
           <Text style={styles.outlineButtonText}>Cambiar contraseña</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.outlineButton, { borderColor: theme.colors.destructive, marginTop: theme.spacing.md }]}
           onPress={handleLogout}
         >
@@ -156,22 +192,22 @@ export default function ProfileScreen({ navigation }) {
             Cerrar sesión
           </Text>
         </TouchableOpacity>
-      
-      </ScrollView> 
+
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-// --- ESTILOS SIMPLIFICADOS (Usando tu theme.js) ---
 const styles = StyleSheet.create({
+  /* ... (mantené tus estilos tal cual los tenías) ... */
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
   header: {
-    backgroundColor: theme.colors.primary, 
+    backgroundColor: theme.colors.primary,
     padding: theme.spacing.md,
-    paddingTop: 50, 
+    paddingTop: 50,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -182,14 +218,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: theme.typography.fontSize.xl,
     fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.background, 
+    color: theme.colors.background,
   },
   scrollContainer: {
     flex: 1,
   },
   scrollContent: {
     padding: theme.spacing.md,
-    paddingBottom: 100, // Espacio para la barra de pestañas
+    paddingBottom: 100,
   },
   sectionTitle: {
     fontSize: theme.typography.fontSize.lg,
@@ -222,7 +258,7 @@ const styles = StyleSheet.create({
   },
   settingText: {
     marginLeft: theme.spacing.md,
-    flex: 1, // Permite que el texto se ajuste si es largo
+    flex: 1,
   },
   settingLabel: {
     fontSize: 16,
@@ -264,22 +300,22 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    color: theme.colors.foreground, // Color del texto
+    color: theme.colors.foreground,
     fontSize: 16,
   },
   alertBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#eff6ff', // bg-blue-50 (inferido)
-    borderColor: '#dbeafe', // border-blue-200 (inferido)
+    backgroundColor: '#eff6ff',
+    borderColor: '#dbeafe',
     borderWidth: 1,
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
     marginTop: theme.spacing.sm,
   },
   alertText: {
-    flex: 1, 
+    flex: 1,
     marginLeft: theme.spacing.sm,
-    color: '#1e40af', // text-blue-800 (inferido)
+    color: '#1e40af',
   },
 });

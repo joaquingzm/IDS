@@ -1,26 +1,61 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from "react-native";
 import { theme } from "../styles/theme";
-import PedidoCard from "../components/pedidoHistorial"; 
-import { db } from "../firebase"; 
-import { collection, onSnapshot } from "firebase/firestore"; 
-import { COLECCION_PEDIDO_HISTORIAL } from "../dbConfig"; 
+import HistorialCard from "../components/pedidoHistorialCard";
+import { auth } from "../firebase";
+import { CAMPOS_PEDIDO, ESTADOS_PEDIDO, CAMPOS_OFERTA } from "../dbConfig";
+import * as firestoreService from "../utils/firestoreService";
 
 export default function HistorialScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, COLECCION_PEDIDO_HISTORIAL), (snapshot) => {
-      const pedidosFirebase = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setPedidos(pedidosFirebase);
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setPedidos([]);
       setLoading(false);
-    });
+      return;
+    }
 
-    return () => unsub();
+    const currentUserId = currentUser.uid;
+
+    // 🔥 Nos suscribimos a los pedidos "realizados" de la farmacia actual
+    const unsubscribe = firestoreService.listenPedidosPorEstadoYFarmacia(
+      ESTADOS_PEDIDO.REALIZADO,
+      currentUserId,
+      async (pedidosSnapshot) => {
+        try {
+          // Enriquecer cada pedido con su oferta aceptada y datos de usuario
+          const pedidosEnriquecidos = await Promise.all(
+            pedidosSnapshot.map(async (pedido) => {
+              try {
+                const ofertas = await firestoreService.listOfertasForPedido(pedido.id);
+                const ofertaGanadora = ofertas.find(
+                  (of) => of[CAMPOS_OFERTA.ESTADO] === "aceptada"
+                );
+
+                const usuario = await firestoreService.getPedidoUser?.(pedido.id);
+                return { pedido, oferta: ofertaGanadora, usuario };
+              } catch (err) {
+                console.warn("Error enriqueciendo pedido:", pedido.id, err);
+                return { pedido, oferta: null, usuario: null };
+              }
+            })
+          );
+
+          setPedidos(pedidosEnriquecidos);
+        } catch (error) {
+          console.error("Error procesando pedidos:", error);
+          Alert.alert("Error", "No se pudieron cargar los pedidos.");
+        } finally {
+          setLoading(false);
+        }
+      }
+    );
+
+    // 🔁 Limpieza al desmontar
+    return () => unsubscribe && unsubscribe();
   }, []);
 
   if (loading) {
@@ -32,26 +67,31 @@ export default function HistorialScreen() {
   }
 
   return (
-  <View style={styles.container}>
-    <Text style={styles.title}>Historial de pedidos</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Historial de pedidos</Text>
 
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-    >
-      {pedidos.length > 0 ? (
-        pedidos.map((pedido) => (
-          <PedidoCard key={pedido.id} pedido={pedido} />
-        ))
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.noData}>No hay pedidos en el historial</Text>
-        </View>
-      )}
-    </ScrollView>
-  </View>
-);
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {pedidos.length > 0 ? (
+          pedidos.map(({ pedido, oferta, usuario }) => (
+            <HistorialCard
+              key={pedido.id}
+              pedido={pedido}
+              oferta={oferta}
+              usuario={usuario}
+            />
+          ))
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.noData}>No hay pedidos en el historial</Text>
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -76,6 +116,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: theme.spacing.xl,
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyContainer: {
     flex: 1,

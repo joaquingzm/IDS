@@ -1,21 +1,21 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../styles/theme";
-import { CAMPOS_HISTORIAL } from "../dbConfig";
+import { CAMPOS_PEDIDO, CAMPOS_FARMACIA, CAMPOS_OFERTA } from "../dbConfig";
 
-export default function HistorialCard({ pedido }) {
+export default function HistorialCard({ pedido, oferta, farmacia }) {
   return (
     <View style={styles.card}>
       <View style={styles.infoContainer}>
-        <Text style={styles.title}>{pedido[CAMPOS_HISTORIAL.MONTO]} $</Text>
+        <Text style={styles.title}>{oferta[CAMPOS_OFERTA.MONTO]} $</Text>
         <Text style={styles.text}>
-          Farmacia: {pedido[CAMPOS_HISTORIAL.NOMBRE_FARMACIA]}
+          Farmacia: {farmacia[CAMPOS_FARMACIA.NOMBRE]}
         </Text>
         <Text style={styles.text}>
-          Medicamentos: {pedido[CAMPOS_HISTORIAL.MEDICAMENTOS]}
+          Medicamentos: {oferta[CAMPOS_OFERTA.MEDICAMENTO]}
         </Text>
         <Text style={styles.text}>
-          Fecha de llegada: {pedido[CAMPOS_HISTORIAL.FECHA_LLEGADA]}
+          Fecha de llegada: {oferta[CAMPOS_OFERTA.FECHA_OFERTA]}
         </Text>
       </View>
     </View>
