@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, Switch, TextInput,Alert,SafeAreaView } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, Switch, TextInput,Alert,SafeAreaView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme'; 
 import { auth } from '../firebase'; 
 import { signOut } from 'firebase/auth'; 
+import { useNavigation } from 'expo-router';
 
 
-export default function ProfileScreen({ navigation }) {
+export default function ProfileScreen({}) {
   const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
   const [dontSaveCredentials, setDontSaveCredentials] = useState(false);
+  const navigation = useNavigation();
 
   const showToast = (message) => {
     Alert.alert("Información", message);
@@ -18,7 +20,10 @@ export default function ProfileScreen({ navigation }) {
   const handleLogout = () => {
     signOut(auth)
       .then(() => {
-        navigation.replace('Login'); 
+        navigation.reset({
+      index: 0,
+      routes: [{ name: 'Login' }],
+    }); 
       })
       .catch((error) => {
         console.error("Error al cerrar sesión: ", error);
@@ -96,20 +101,17 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.outlineButtonText}>Cambiar contraseña</Text>
       </Pressable>
 
-      <Pressable
-        onPress={handleLogout}
-        style={({ pressed }) => [
-          styles.outlineButton,
-          styles.destructiveButton,
-          pressed && { backgroundColor: "#fee2e2" },
-        ]}
-      >
-        <Text style={[styles.outlineButtonText, styles.destructiveText]}>
-          Cerrar sesión
-        </Text>
-      </Pressable>
-    </ScrollView>
-  </SafeAreaView>
+      
+               <TouchableOpacity 
+          style={[styles.outlineButton, { borderColor: theme.colors.destructive, marginTop: theme.spacing.md }]}
+          onPress={handleLogout}
+        >
+          <Text style={[styles.outlineButtonText, { color: theme.colors.destructive }]}>
+            Cerrar sesión
+          </Text>
+        </TouchableOpacity>   
+      </ScrollView>
+    </SafeAreaView>
 );
 }
 const styles = StyleSheet.create({

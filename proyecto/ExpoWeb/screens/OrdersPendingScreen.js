@@ -2,9 +2,8 @@ import React, { useEffect, useState } from "react";
 import { View, FlatList, ActivityIndicator, StyleSheet, Text } from "react-native";
 import { theme } from "../styles/theme";
 import CardPedidoPendiente from "../components/pedidoPendienteCard";
-import RappiFarma from "../assets/LogoRappiFarma.png";
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "../firebase";
+import { listenPedidosPorEstado } from "../utils/firestoreService";
+import { ESTADOS_PEDIDO } from "../dbConfig";
 
 export default function OrdersPendingScreen() {
   const [pedidos, setPedidos] = useState([]);

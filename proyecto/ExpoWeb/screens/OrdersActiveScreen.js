@@ -4,20 +4,30 @@ import { theme } from "../styles/theme";
 import PedidoActivaCard from "../components/pedidoActivoCard";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
+import { listenPedidosPorEstado } from "../utils/firestoreService";
+import { ESTADOS_PEDIDO } from "../dbConfig";
+
+
 
 export default function OrdersActiveScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "PedidosAceptados"), (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setPedidos(data);
-      setLoading(false);
-    });
-
-    return () => unsub();
-  }, []);
+        const unsub = listenPedidosPorEstado(ESTADOS_PEDIDO.ACTIVO, (items) => {
+          setPedidos(items);
+          setLoading(false);
+        });
+        return () => unsub();
+      }, []);
+  
+    if (loading) {
+      return (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      );
+    }   
 
   // Función para eliminar pedido de la lista local cuando se mueve a historial
   const handlePedidoEliminado = (pedidoId) => {
