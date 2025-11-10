@@ -5,7 +5,8 @@ import PedidoUsuarioCard from "../components/PedidoCard";
 import { StatusCardButton } from "../components/StatusCardButton";
 import { db, auth } from "../firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { COLECCION_PEDIDO_USUARIO, CAMPOS_PEDIDO_USUARIO } from "../dbConfig";
+import { COLECCION_PEDIDO, CAMPOS_PEDIDO, ESTADOS_PEDIDO } from "../dbConfig";
+import { listPedidosByUser } from "../utils/firestoreService";
 
 export default function OfertsScreen({ navigation }) {
   const [pedidoActual, setPedidoActual] = useState(null);
@@ -21,19 +22,34 @@ export default function OfertsScreen({ navigation }) {
           return;
         }
 
-        const q = query(
-          collection(db, COLECCION_PEDIDO_USUARIO),
-          where(CAMPOS_PEDIDO_USUARIO.USER_ID, "==", currentUserId)
+        const allPedidos = await listPedidosByUser(currentUserId);
+        
+        
+        const pedidosActivos = allPedidos.filter(
+          (p) => (p[CAMPOS_PEDIDO.ESTADO] ?? p.estado) === ESTADOS_PEDIDO.ENTRANTE
         );
 
-        const querySnapshot = await getDocs(q);
 
-        if (!querySnapshot.empty) {
-          const docSnap = querySnapshot.docs[0];
-          setPedidoActual({ id: docSnap.id, ...docSnap.data() });
-        } else {
+        if (pedidosActivos.length === 0) {
           setPedidoActual(null);
+          return;
         }
+
+        const pedido = pedidosActivos[0];
+
+        // 3️⃣ Enriquecer pedido con oferta y farmacia
+        const ofertas = await firestoreService.listOfertasForPedido(pedido.id);
+        const ofertaSeleccionada = ofertas.find(
+          (of) => of[CAMPOS_OFERTA.ESTADO] === "ACEPTADA"
+        );
+
+        let farmacia = null;
+        if (ofertaSeleccionada?.farmaciaId) {
+          farmacia = await firestoreService.getFarmaciaById(ofertaSeleccionada.farmaciaId);
+        }
+
+        setPedidoActual({ pedido, oferta: ofertaSeleccionada, farmacia });
+      
       } catch (error) {
         console.error("Error al cargar pedido actual:", error);
         Alert.alert("Error", "No se pudo cargar el pedido actual.");
@@ -65,7 +81,11 @@ export default function OfertsScreen({ navigation }) {
         {loading ? (
           <ActivityIndicator size="large" color={theme.colors.primary} />
         ) : pedidoActual ? (
-          <PedidoUsuarioCard pedido={pedidoActual} />
+          <PedidoUsuarioCard
+            pedido={pedidoActual.pedido}
+            oferta={pedidoActual.oferta}
+            farmacia={pedidoActual.farmacia}
+          />
         ) : (
           <Text style={styles.noPedidoText}>No tenés pedidos activos.</Text>
         )}
