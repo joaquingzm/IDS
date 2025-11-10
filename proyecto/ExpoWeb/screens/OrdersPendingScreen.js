@@ -11,13 +11,12 @@ export default function OrdersPendingScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "PedidosFarmacia"), (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setPedidos(data);
-      setLoading(false);
-    });
-    return () => unsub();
-  }, []);
+      const unsub = listenPedidosPorEstado(ESTADOS_PEDIDO.PENDIENTE, (items) => {
+        setPedidos(items);
+        setLoading(false);
+      });
+      return () => unsub();
+    }, []);
 
   if (loading) {
     return (

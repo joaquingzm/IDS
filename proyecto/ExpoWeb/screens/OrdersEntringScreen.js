@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, FlatList, ActivityIndicator, StyleSheet, Text } from "react-native";
 import { theme } from "../styles/theme";
 import CardPedidoEntrante from "../components/pedidoEntranteCard";
-import { listenPedidosPorEstado } from "../../frontend/utils/firestoreService";
+import { listenPedidosPorEstado } from "../utils/firestoreService";
 import {
   ESTADOS_PEDIDO,
 } from "../dbConfig"
@@ -10,7 +10,6 @@ import {
 export default function OrdersPendingScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     const unsub = listenPedidosPorEstado(ESTADOS_PEDIDO.ENTRANTE, (items) => {
       setPedidos(items);
