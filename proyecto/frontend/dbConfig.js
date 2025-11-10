@@ -77,13 +77,13 @@ export const COLECCION_OFERTA = "Oferta";
 export const CAMPOS_OFERTA = {
   // Info farmacia
   FARMACIA_ID: "farmaciaId",
-  NOMBRE_FARMACIA: "nombre de farmacia",
+  NOMBRE_FARMACIA: "nombreDeFarmacia",
 
   // Info oferta
   MONTO: "monto",
   MEDICAMENTO: "medicamento",
   FECHA_OFERTA: "fechaOferta",
-  Tiempo_Espera: "tiempoEspera",
+  TIEMPO_ESPERA: "tiempoEspera",
 
   // Estado oferta
   ESTADO: "estado", // pendiente, aceptada, rechazada

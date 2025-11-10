@@ -3,7 +3,18 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, TextInput, Pressable, 
 import { db } from "../firebase";
 import { doc, setDoc, deleteDoc, getDoc } from "firebase/firestore";
 import { theme } from "../styles/theme";
-import { CAMPOS_PEDIDO_FARMACIA, COLECCION_PEDIDO_ACEPTADOS, CAMPOS_PEDIDO_ACEPTADOS } from "../dbConfig";
+import {
+  COLECCION_USUARIOS,
+  CAMPOS_USUARIO,
+  COLECCION_FARMACIAS,
+  CAMPOS_FARMACIA,
+  COLECCION_PEDIDO,
+  CAMPOS_PEDIDO,
+  COLECCION_OFERTA,
+  CAMPOS_OFERTA,
+  ESTADOS_PEDIDO,
+  ESTADOS_OFERTA,
+} from "../dbConfig";
 
 export default function CardPedidoEntrante({ pedido }) {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
@@ -22,48 +33,20 @@ export default function CardPedidoEntrante({ pedido }) {
     }
 
     try {
-      const pedidoRef = doc(db, "PedidosFarmacia", pedido.id);
-      const pedidoSnapshot = await getDoc(pedidoRef);
+      
+      await updatePedido(pedido.id, {
+        [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.PENDIENTE,
+      });
+     
+      
 
-      if (pedidoSnapshot.exists()) {
-        const pedidoData = pedidoSnapshot.data();
-        
-        console.log("📋 Datos del pedido:", pedidoData);
-        console.log("🔍 Constantes:", { 
-          COLECCION_PEDIDO_ACEPTADOS, 
-          CAMPOS_PEDIDO_ACEPTADOS 
-        });
-
-
-        if (!CAMPOS_PEDIDO_ACEPTADOS) {
-          throw new Error("CAMPOS_PEDIDO_ACEPTADOS no está definido");
-        }
-
-        // Crear el documento con la estructura correcta
-        const pedidoAceptado = {
-          [CAMPOS_PEDIDO_ACEPTADOS.NOMBRE_USUARIO]: pedidoData[CAMPOS_PEDIDO_FARMACIA.NOMBRE_USUARIO] || "No especificado",
-          [CAMPOS_PEDIDO_ACEPTADOS.APELLIDO_USUARIO]: pedidoData[CAMPOS_PEDIDO_FARMACIA.APELLIDO_USUARIO] || "No especificado",
-          [CAMPOS_PEDIDO_ACEPTADOS.DIRECCION]: pedidoData[CAMPOS_PEDIDO_FARMACIA.DIRECCION] || "No especificado",
-          [CAMPOS_PEDIDO_ACEPTADOS.USER_ID]: pedidoData[CAMPOS_PEDIDO_FARMACIA.USER_ID] || "No especificado",
-          [CAMPOS_PEDIDO_ACEPTADOS.OBRASOCIAL]: pedidoData[CAMPOS_PEDIDO_FARMACIA.OBRASOCIAL] || "No especificado",
-          [CAMPOS_PEDIDO_ACEPTADOS.FECHA_PEDIDO]: pedidoData[CAMPOS_PEDIDO_FARMACIA.FECHA_PEDIDO] || new Date(),
-          [CAMPOS_PEDIDO_ACEPTADOS.MEDICAMENTOS]: medicamentos.trim(),
-          [CAMPOS_PEDIDO_ACEPTADOS.MONTO]: monto.trim(),
-          fechaAceptacion: new Date(),
-        };
-
-        // Mover el documento a la colección "PedidosPendientes"
-        await setDoc(doc(db, COLECCION_PEDIDO_ACEPTADOS, pedido.id), pedidoAceptado);
-        await deleteDoc(pedidoRef);
-
-        console.log(" Pedido aceptado y movido correctamente a PedidosAceptados");
-        alert("Pedido aceptado con éxito");
-        
-        // Resetear el estado
-        setMostrarFormulario(false);
-        setMedicamentos("");
-        setMonto("");
-      }
+      console.log(" Pedido aceptado y movido correctamente a PedidosAceptados");
+      alert("Pedido aceptado con éxito");
+      
+      // Resetear el estado
+      setMostrarFormulario(false);
+      setMedicamentos("");
+      setMonto("");
     } catch (error) {
       console.error("Error al aceptar pedido:", error);
       alert(`Error al aceptar el pedido: ${error.message}`);
@@ -88,12 +71,14 @@ export default function CardPedidoEntrante({ pedido }) {
   };
 
   
-  const nombre = pedido[CAMPOS_PEDIDO_FARMACIA.NOMBRE_USUARIO] || "No especificado";
-  const apellido = pedido[CAMPOS_PEDIDO_FARMACIA.APELLIDO_USUARIO] || "No especificado";
-  const direccion = pedido[CAMPOS_PEDIDO_FARMACIA.DIRECCION] || "No especificado";
-  const obraSocial = pedido[CAMPOS_PEDIDO_FARMACIA.OBRASOCIAL] || "No especificado";
-  const fechaPedido = pedido[CAMPOS_PEDIDO_FARMACIA.FECHA_PEDIDO]?.toDate?.() || null;
-  const imagen = pedido[CAMPOS_PEDIDO_FARMACIA.IMAGEN];
+  const nombre = pedido[CAMPOS_PEDIDO.NOMBRE_USUARIO] || "No especificado";
+  const apellido = pedido[CAMPOS_PEDIDO.APELLIDO_USUARIO] || "No especificado";
+  const direccion = pedido[CAMPOS_PEDIDO.DIRECCION] || "No especificado";
+  const obraSocial = pedido[CAMPOS_PEDIDO.OBRASOCIAL] || "No especificado";
+  const fechaPedido = pedido[CAMPOS_PEDIDO.FECHA_PEDIDO]?.toDate?.() || null;
+  const imagen = pedido[CAMPOS_PEDIDO.IMAGEN];
+  const textOCR = pedido[CAMPOS_PEDIDO.OCR];
+
 
   return (
     <View style={styles.card}>
@@ -122,6 +107,8 @@ export default function CardPedidoEntrante({ pedido }) {
         </Text>
         {direccion && <Text style={styles.text}>Dirección: {direccion}</Text>}
         {obraSocial && <Text style={styles.text}>Obra social: {obraSocial}</Text>}
+        {/*MODIFICAR*/}
+        {textOCR && <Text style={styles.text}>Obra social: {textOCR}</Text>}
         {fechaPedido && (
           <Text style={styles.text}>
             Fecha de llegada: {fechaPedido.toLocaleDateString()}{" "}
