@@ -7,6 +7,7 @@ import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { COLECCION_FARMACIAS, CAMPOS_FARMACIA } from "../dbConfig";
 import useNav from "../hooks/UseNavigation";
+import { createFarmacia } from "../utils/firestoreService.js";
 
 export default function RegisterScreen({navigation}) {
   const [nombre, setNombre] = useState("");
@@ -15,30 +16,16 @@ export default function RegisterScreen({navigation}) {
   const [direccion, setDireccion] = useState("");
   const [telefono, setTelefono] = useState("");
   const { goLogin } = useNav();
+  
   const handleRegister = async() => {
     try{
         const UserCredential = await createUserWithEmailAndPassword(auth,email,password);
         const user = UserCredential.user;
         
-        
-        await new Promise((resolve) => {
-          const unsub = auth.onAuthStateChanged((u) => {
-            if (u) {
-              unsub();
-              resolve();
-            }
-          });
-        });
-
-        await setDoc(doc(db, COLECCION_FARMACIAS,user.uid),{
-        [CAMPOS_FARMACIA.EMAIL]: email,
-        [CAMPOS_FARMACIA.NOMBRE]: nombre,
-        [CAMPOS_FARMACIA.TELEFONO]: telefono,
-        [CAMPOS_FARMACIA.ROL]: "Farmacia",
-        [CAMPOS_FARMACIA.FECHA_REGISTRO]: new Date(),
-        [CAMPOS_FARMACIA.DIRECCION]: direccion,
-       });
-
+        await createFarmacia(
+          { email, nombre, direccion, rol: "farmacia", telefono},
+      user.uid 
+        )       
      console.log("Usuario registrado:", user.uid);
       alert("Registro exitoso");
       goLogin();

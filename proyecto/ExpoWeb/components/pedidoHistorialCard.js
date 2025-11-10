@@ -1,9 +1,9 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../styles/theme";
-import { CAMPOS_PEDIDO_HISTORIAL } from "../dbConfig"; // asegúrate de importar correctamente
+import { CAMPOS_USUARIO,CAMPOS_PEDIDO,CAMPOS_OFERTA } from "../dbConfig"; // asegúrate de importar correctamente
 
-export default function PedidoCard({ pedido }) {
+export default function HistorialCard({ pedido,oferta,usuario }) {
   if (!pedido) {
     return (
       <View style={styles.card}>
@@ -11,37 +11,32 @@ export default function PedidoCard({ pedido }) {
       </View>
     );
   }
-
-  const nombre = pedido[CAMPOS_PEDIDO_HISTORIAL.NOMBRE_USUARIO];
-  const apellido = pedido[CAMPOS_PEDIDO_HISTORIAL.APELLIDO_USUARIO];
-  const fechaPedido = pedido[CAMPOS_PEDIDO_HISTORIAL.FECHA_PEDIDO]?.toDate?.() || null;
-  const direccion = pedido[CAMPOS_PEDIDO_HISTORIAL.DIRECCION];
-  const obraSocial = pedido[CAMPOS_PEDIDO_HISTORIAL.OBRASOCIAL];
-  const medicamentos = pedido[CAMPOS_PEDIDO_HISTORIAL.MEDICAMENTOS];
-  const monto = pedido[CAMPOS_PEDIDO_HISTORIAL.MONTO];
-
   return (
     <View style={styles.card}>
       <Text style={styles.title}>
-        Pedido de {nombre} {apellido}
+        Pedido de {usuario[CAMPOS_USUARIO.NOMBRE]} {usuario[CAMPOS_USUARIO.APELLIDO]}
       </Text>
 
-      {fechaPedido && (
-        <Text style={styles.text}>
-          📅 Fecha: {fechaPedido.toLocaleDateString()}{" "}
-          {fechaPedido.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-        </Text>
-      )}
+     <Text style={styles.text}>
+               Fecha de llegada: {oferta[CAMPOS_OFERTA.FECHA_OFERTA]}
+     </Text>
+      
+      <Text style={styles.text}>
+                Direccion: {usuario[CAMPOS_USUARIO.DIRECCION]}
+      </Text>
 
-      {direccion && <Text style={styles.text}>📍 Dirección: {direccion}</Text>}
+      <Text style={styles.text}>
+                Obra social: {usuario[CAMPOS_USUARIO.OBRASOCIAL]}
+      </Text>      
+      
+      <Text style={styles.text}>
+                Medicamentos: {oferta[CAMPOS_OFERTA.MEDICAMENTO]}
+      </Text> 
 
-      {obraSocial && <Text style={styles.text}>🏥 Obra social: {obraSocial}</Text>}
-
-      {medicamentos && (
-        <Text style={styles.text}>💊 Medicamentos: {medicamentos}</Text>
-      )}
-
-      {monto && <Text style={styles.text}>💰 Monto: ${monto}</Text>}
+      
+      <Text style={styles.text}>
+                Monto: {oferta[CAMPOS_OFERTA.MONTO]}
+      </Text>  
     </View>
   );
 }
