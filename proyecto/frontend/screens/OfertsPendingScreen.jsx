@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { theme } from '../styles/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { auth } from '../firebase'; 
-import {  ESTADOS_PEDIDO } from '../dbConfig';
-import { listPedidosByUser, listOfertasForPedido,} from "../utils/firestoreService";
+import { auth } from '../firebase';
+import { ESTADOS_PEDIDO } from '../dbConfig';
+import { listPedidosByUser, listOfertasForPedido, } from "../utils/firestoreService";
 import OfertaCard from "../components/OfertaCard";
 
 
@@ -25,21 +25,21 @@ export default function OfertasUsuarioScreen({ navigation }) {
 
         // Agarro TODOS los pedidos del usuario
         const pedidos = await listPedidosByUser(currentUserId);
-        
+
         // Filtro los pedidos de estado pendiente
-        const pedidosPendientes = pedidos.filter(pedido => 
+        const pedidosPendientes = pedidos.filter(pedido =>
           pedido.estado === ESTADOS_PEDIDO.PENDIENTE
         );
 
         // Para cada pedido pendiente obtengo sus ofertas
         const pedidosConOfertasData = [];
-        
+
         for (const pedido of pedidosPendientes) {
           try {
             const ofertas = await listOfertasForPedido(pedido.id);
-            
+
             // Filtro solo ofertas de estado pendiente
-            const ofertasPendientes = ofertas.filter(oferta => 
+            const ofertasPendientes = ofertas.filter(oferta =>
               oferta.estado === 'pendiente'
             );
 
@@ -96,11 +96,11 @@ export default function OfertasUsuarioScreen({ navigation }) {
           Pedido del {pedido.fechaPedido?.toDate?.().toLocaleDateString() || 'Fecha no disponible'}
         </Text>
         <Text style={styles.pedidoEstado}>Estado: {pedido.estado}</Text>
-        
+
         {pedido.ofertas.map(oferta => (
-          <OfertaCard 
-            key={oferta.id} 
-            oferta={oferta} 
+          <OfertaCard
+            key={oferta.id}
+            oferta={oferta}
             pedidoId={pedido.id}
             pedidoData={pedido}
           />
@@ -113,7 +113,7 @@ export default function OfertasUsuarioScreen({ navigation }) {
     <SafeAreaView style={styles.safeArea}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
@@ -126,8 +126,8 @@ export default function OfertasUsuarioScreen({ navigation }) {
       <View style={styles.alertBox}>
         <Ionicons name="cube-outline" size={20} color={theme.colors.primary} />
         <Text style={styles.alertText}>
-          {loading 
-            ? "Cargando ofertas..." 
+          {loading
+            ? "Cargando ofertas..."
             : `Tienes ${contarOfertasTotales()} ofertas en ${pedidosConOfertas.length} pedidos`}
         </Text>
       </View>
