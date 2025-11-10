@@ -2,20 +2,24 @@ import React, { useEffect, useState } from "react";
 import { View, FlatList, ActivityIndicator, StyleSheet, Text } from "react-native";
 import { theme } from "../styles/theme";
 import CardPedidoPendiente from "../components/pedidoPendienteCard";
-import { listenPedidosPorEstado } from "../utils/firestoreService";
+import { listenPedidosPorEstado, listenPedidosPorEstadoYFarmacia } from "../utils/firestoreService";
 import { ESTADOS_PEDIDO } from "../dbConfig";
+import { auth } from "../firebase";
 
 export default function OrdersPendingScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const farmaciaId = auth.currentUser?.uid;
 
   useEffect(() => {
-      const unsub = listenPedidosPorEstado(ESTADOS_PEDIDO.PENDIENTE, (items) => {
+      const unsub = listenPedidosPorEstadoYFarmacia(ESTADOS_PEDIDO.PENDIENTE, farmaciaId, (items) => {
         setPedidos(items);
         setLoading(false);
       });
       return () => unsub();
     }, []);
+
+
 
   if (loading) {
     return (
