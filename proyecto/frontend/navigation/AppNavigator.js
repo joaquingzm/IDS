@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'; 
 import { Ionicons } from '@expo/vector-icons';
@@ -6,11 +6,11 @@ import { TouchableOpacity, View, StyleSheet, Image, Alert, Platform } from 'reac
 import { openCameraAndTakePhoto } from '../utils/cameraUtils';
 import { theme } from '../styles/theme';
 import { COLECCION_PEDIDO_FARMACIA, CAMPOS_PEDIDO_FARMACIA } from "../dbConfig";
-import { COLECCION_USUARIOS, CAMPOS_USUARIO } from "../dbConfig";
 import { db, auth } from "../firebase";
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";  
 import { uploadImageToCloudinary } from "../context/uploadImage";
 import { useNavigation } from "@react-navigation/native";
+import {getUsuarioByEmail,getUsuarioByUid, crearPedido} from "../utils/firestoreService"
 
 // Import de las  pantallas
 import LoginScreen from '../screens/LoginScreen';
@@ -21,6 +21,20 @@ import ProfileScreen from '../screens/ProfileScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 import OfertsPendingScreen from '../screens/OfertsPendingScreen';
+import firestoreService from '../utils/firestoreService';
+
+import {
+  COLECCION_USUARIOS,
+  CAMPOS_USUARIO,
+  COLECCION_FARMACIAS,
+  CAMPOS_FARMACIA,
+  COLECCION_PEDIDO,
+  CAMPOS_PEDIDO,
+  COLECCION_OFERTA,
+  CAMPOS_OFERTA,
+  ESTADOS_PEDIDO,
+  ESTADOS_OFERTA,
+} from "../dbConfig";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator(); 
@@ -73,8 +87,8 @@ function MainTabs() {
           type: "image/jpeg",
         });
       }
-        /*
-      const res = await fetch("http://10.0.2.15:8001/ocr", {
+
+      const res = await fetch("http://10.0.2.15:8000/ocr", {
         //IP LOCAL DE LA MAQUINA
         method: "POST",
         body: formData,
@@ -83,14 +97,10 @@ function MainTabs() {
       const resultOCR = await res.json();
       console.log("Respuesta del backend:", resultOCR);
 
-      if (resultOCR.resultado) {
-        Alert.alert("Éxito", resultOCR.resultado); //RESULTADO DEL OCR!!, JSON HAY QUE VER COMO USARLO
-      }
-*/
       console.log("Subiendo imagen a Cloudinary...");
       const imageUrl = await uploadImageToCloudinary(uri);
       console.log("Imagen subida con éxito:", imageUrl);
-
+        //----------------------------------------------------------------------------
       try {
         const currentUser = auth.currentUser;
         if (!currentUser) {
@@ -99,43 +109,33 @@ function MainTabs() {
         }
 
         console.log("Intentando crear pedido para usuario:", currentUser.email);
-        // Buscar datos del usuario en la colección usuarios
-        const q = query(
-          collection(db, COLECCION_USUARIOS),
-          where(CAMPOS_USUARIO.EMAIL, "==", currentUser.email)
-        );
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-          console.log("Error", "No se encontró el usuario en la base de datos");
-          Alert.alert("Error", "No se encontró el usuario en la base de datos");
-          return;
-        }
-        console.log(
-          "Resultado de query usuarios:",
-          querySnapshot.docs.map((d) => d.data())
-        );
-        const userData = querySnapshot.docs[0].data();
+        const usuario = await getUsuarioByUid(currentUser.uid);
 
         // Crear el documento en "PedidosFarmacia"
-        const docRef = await addDoc(collection(db, COLECCION_PEDIDO_FARMACIA), {
-          [CAMPOS_PEDIDO_FARMACIA.IMAGEN]: imageUrl, // la URL de Cloudinary
-          [CAMPOS_PEDIDO_FARMACIA.NOMBRE_USUARIO]:
-            userData[CAMPOS_USUARIO.NOMBRE],
-          [CAMPOS_PEDIDO_FARMACIA.APELLIDO_USUARIO]:
-            userData[CAMPOS_USUARIO.APELLIDO],
-          [CAMPOS_PEDIDO_FARMACIA.DIRECCION]:
-            userData[CAMPOS_USUARIO.DIRECCION],
-          [CAMPOS_PEDIDO_FARMACIA.OBRASOCIAL]:
-            userData[CAMPOS_USUARIO.OBRASOCIAL],
-          [CAMPOS_PEDIDO_FARMACIA.USER_ID]: currentUser.uid,
-          [CAMPOS_PEDIDO_FARMACIA.FECHA_PEDIDO]: serverTimestamp(),
-         // [CAMPOS_PEDIDO_FARMACIA.OCR]: resultOCR,
+        const idPedido = await crearPedido({
+          // Info cliente
+          [CAMPOS_PEDIDO.USER_ID]: currentUser.uid,
+          [CAMPOS_PEDIDO.NOMBRE_USUARIO]: usuario[CAMPOS_USUARIO.NOMBRE],
+          [CAMPOS_PEDIDO.APELLIDO_USUARIO]: usuario[CAMPOS_USUARIO.APELLIDO],
+          [CAMPOS_PEDIDO.OBRASOCIAL]: usuario[CAMPOS_USUARIO.OBRASOCIAL],
+          [CAMPOS_PEDIDO.DIRECCION]: usuario[CAMPOS_USUARIO.DIRECCION],
+
+          // Info pedido
+          [CAMPOS_PEDIDO.IMAGEN]: imageUrl,
+          [CAMPOS_PEDIDO.OCR]: resultOCR,
+          [CAMPOS_PEDIDO.FECHA_PEDIDO]: Date(),
+
+          // Estado pedido
+          [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.ENTRANTE, // entrante, pendiente, activo, realizado, rechazado
+          [CAMPOS_PEDIDO.OFERTA_ACEPTADA_ID]: "ofertaAceptadaId",
+          [CAMPOS_PEDIDO.FARMACIA_ASIGANADA_ID]: "farmaciaAsignadaID",
+
+          // Ofertas
+          [CAMPOS_PEDIDO.OFERTAS_IDS]: "ofertasId",
         });
-
-        console.log("Pedido guardado en Firestore correctamente, id: " + docRef.id);
-
-                    if (Platform.OS === 'web') {
+        console.log("Pedido guardado en Firestore correctamente, id: " + idPedido);
+        //------------------------------------------------------------------------------------
+          if (Platform.OS === 'web') {
           window.alert("Pedido registrado.\nEstamos esperando ofertas hechas por las farmacias.");
           navigation.navigate("OfertsPending");
         } else {

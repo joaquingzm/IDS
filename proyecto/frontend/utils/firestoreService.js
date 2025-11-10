@@ -134,7 +134,6 @@ export async function crearPedido(pedidoData) {
     if (!pedidoData || !pedidoData.userId || !pedidoData.imagen) {
         throw new Error("pedidoData inválido: requiere userId e imagen");
     }
-
     const payload = {
         [CAMPOS_PEDIDO.USER_ID]: pedidoData.userId,
         [CAMPOS_PEDIDO.NOMBRE_USUARIO]: pedidoData.nombreUsuario || "",
@@ -142,7 +141,7 @@ export async function crearPedido(pedidoData) {
         [CAMPOS_PEDIDO.OBRASOCIAL]: pedidoData.obraSocialUsuario || "",
         [CAMPOS_PEDIDO.DIRECCION]: pedidoData.direccionUsuario || "",
         [CAMPOS_PEDIDO.IMAGEN]: pedidoData.imagen,
-        [CAMPOS_PEDIDO.OCR]: pedidoData.ocr || null,
+        [CAMPOS_PEDIDO.OCR]: pedidoData.resultadosOCR,
         [CAMPOS_PEDIDO.FECHA_PEDIDO]: serverTimestamp(),
         [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO?.ENTRANTE || "entrante",
         [CAMPOS_PEDIDO.OFERTA_ACEPTADA_ID]: null,
