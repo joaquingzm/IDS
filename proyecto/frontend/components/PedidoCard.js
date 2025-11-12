@@ -12,16 +12,20 @@ export default function PedidoUsuarioCard({ pedido, oferta, farmacia }) {
         </Text>
 
         <Text style={styles.text}>
-          Farmacia: {farmacia[CAMPOS_FARMACIA.NOMBRE]}
+          Farmacia: {farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "Desconocido"}
         </Text>
 
         <Text style={styles.text}>
-          Medicamentos: {oferta[CAMPOS_OFERTA.MEDICAMENTO]}
+          Medicamentos: {oferta?.[CAMPOS_OFERTA.MEDICAMENTO] || "Desconocido"}
         </Text>
 
         <Text style={styles.text}>
-          Fecha de pedido: {oferta[CAMPOS_OFERTA.FECHA_OFERTA]}
+          Fecha de pedido:{" "}
+          {pedido[CAMPOS_PEDIDO.FECHA_PEDIDO]?.toDate
+            ? pedido[CAMPOS_PEDIDO.FECHA_PEDIDO].toDate().toLocaleString()
+            : pedido[CAMPOS_PEDIDO.FECHA_PEDIDO]?.toLocaleString?.() || "Desconocido"}
         </Text>
+
       </View>
     </View>
   );

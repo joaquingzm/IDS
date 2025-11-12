@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from "re
 import { theme } from "../styles/theme";
 import HistorialCard from "../components/pedidoHistorialCard";
 import { auth } from "../firebase";
-import { CAMPOS_PEDIDO, ESTADOS_PEDIDO, CAMPOS_OFERTA } from "../dbConfig";
+import { CAMPOS_PEDIDO, ESTADOS_PEDIDO, CAMPOS_OFERTA, ESTADOS_OFERTA } from "../dbConfig";
 import * as firestoreService from "../utils/firestoreService";
 
 export default function HistorialScreen() {
@@ -32,11 +32,10 @@ export default function HistorialScreen() {
               try {
                 const ofertas = await firestoreService.listOfertasForPedido(pedido.id);
                 const ofertaGanadora = ofertas.find(
-                  (of) => of[CAMPOS_OFERTA.ESTADO] === "aceptada"
+                  (of) => of[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.ACEPTADA
                 );
 
-                const usuario = await firestoreService.getPedidoUser?.(pedido.id);
-                return { pedido, oferta: ofertaGanadora, usuario };
+                return { pedido, oferta: ofertaGanadora };
               } catch (err) {
                 console.warn("Error enriqueciendo pedido:", pedido.id, err);
                 return { pedido, oferta: null, usuario: null };
@@ -76,12 +75,11 @@ export default function HistorialScreen() {
         showsVerticalScrollIndicator={false}
       >
         {pedidos.length > 0 ? (
-          pedidos.map(({ pedido, oferta, usuario }) => (
+          pedidos.map(({ pedido, oferta }) => (
             <HistorialCard
               key={pedido.id}
               pedido={pedido}
               oferta={oferta}
-              usuario={usuario}
             />
           ))
         ) : (

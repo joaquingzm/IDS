@@ -1,70 +1,52 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { theme } from '../styles/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { auth } from '../firebase';
-import { ESTADOS_PEDIDO } from '../dbConfig';
-import { listPedidosByUser, listOfertasForPedido, } from "../utils/firestoreService";
+import { ESTADOS_OFERTA, ESTADOS_PEDIDO } from '../dbConfig';
+import { listenOfertasDePedido, listenPedidosPorEstado } from "../utils/firestoreService";
 import OfertaCard from "../components/OfertaCard";
-
 
 export default function OfertasUsuarioScreen({ navigation }) {
   const [pedidosConOfertas, setPedidosConOfertas] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const cargarPedidosYOfertas = async () => {
-      setLoading(true);
-      try {
-        const currentUserId = auth.currentUser ? auth.currentUser.uid : null;
-        if (!currentUserId) {
-          setPedidosConOfertas([]);
-          setLoading(false);
-          return;
-        }
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
 
-        // Agarro TODOS los pedidos del usuario
-        const pedidos = await listPedidosByUser(currentUserId);
+    // 1️⃣ Escuchar los pedidos del usuario en tiempo real
+    const unsubPedidos = listenPedidosPorEstado(ESTADOS_PEDIDO.PENDIENTE, (pedidos) => {
+      const pedidosUsuario = pedidos.filter(p => p.userId === currentUser.uid);
 
-        // Filtro los pedidos de estado pendiente
-        const pedidosPendientes = pedidos.filter(pedido =>
-          pedido.estado === ESTADOS_PEDIDO.PENDIENTE
-        );
+      // Para evitar fugas, limpiamos listeners anteriores
+      pedidosConOfertas.forEach(p => p.unsub && p.unsub());
 
-        // Para cada pedido pendiente obtengo sus ofertas
-        const pedidosConOfertasData = [];
+      const nuevosPedidos = [];
 
-        for (const pedido of pedidosPendientes) {
-          try {
-            const ofertas = await listOfertasForPedido(pedido.id);
+      pedidosUsuario.forEach((pedido) => {
+        // 2️⃣ Escuchar ofertas de ese pedido en tiempo real
+        const unsubOfertas = listenOfertasDePedido(pedido.id, (ofertas) => {
+          const ofertasPendientes = ofertas.filter(o => o.estado === ESTADOS_OFERTA.PENDIENTE);
 
-            // Filtro solo ofertas de estado pendiente
-            const ofertasPendientes = ofertas.filter(oferta =>
-              oferta.estado === 'pendiente'
-            );
+          setPedidosConOfertas(prev => {
+            const otros = prev.filter(p => p.id !== pedido.id);
+            return ofertasPendientes.length > 0
+              ? [...otros, { ...pedido, ofertas: ofertasPendientes }]
+              : otros; // si no tiene ofertas pendientes, lo saco
+          });
+        });
 
-            if (ofertasPendientes.length > 0) {
-              pedidosConOfertasData.push({
-                ...pedido,
-                ofertas: ofertasPendientes
-              });
-            }
-          } catch (error) {
-            console.error(`Error cargando ofertas para pedido ${pedido.id}:`, error);
-          }
-        }
+        nuevosPedidos.push({ ...pedido, unsub: unsubOfertas });
+      });
 
-        setPedidosConOfertas(pedidosConOfertasData);
-        setLoading(false);
+      setLoading(false);
+    });
 
-      } catch (error) {
-        console.error("Error cargando pedidos: ", error);
-        Alert.alert("Error", "No se pudo cargar la lista de pedidos.");
-        setLoading(false);
-      }
+    return () => {
+      unsubPedidos();
+      pedidosConOfertas.forEach(p => p.unsub && p.unsub());
     };
-
-    cargarPedidosYOfertas();
   }, []);
 
   const contarOfertasTotales = () => {
@@ -80,12 +62,8 @@ export default function OfertasUsuarioScreen({ navigation }) {
       return (
         <View style={styles.emptyState}>
           <Ionicons name="cube-outline" size={64} color={theme.colors.mutedForeground} />
-          <Text style={styles.emptyText}>
-            No tienes ofertas disponibles por ahora.
-          </Text>
-          <Text style={styles.emptySubtext}>
-            Cuando las farmacias hagan ofertas para tus pedidos, aparecerán aquí.
-          </Text>
+          <Text style={styles.emptyText}>No tienes ofertas disponibles por ahora.</Text>
+          <Text style={styles.emptySubtext}>Cuando las farmacias hagan ofertas para tus pedidos, aparecerán aquí.</Text>
         </View>
       );
     }
@@ -133,9 +111,7 @@ export default function OfertasUsuarioScreen({ navigation }) {
       </View>
 
       {/* Listado de ofertas */}
-      <ScrollView style={styles.content}>
-        {renderPedidosConOfertas()}
-      </ScrollView>
+      <ScrollView style={styles.content}>{renderPedidosConOfertas()}</ScrollView>
     </SafeAreaView>
   );
 }

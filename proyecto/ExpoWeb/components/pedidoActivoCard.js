@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  Platform,
+} from "react-native";
 import { theme } from "../styles/theme";
 import { db } from "../firebase";
 import { doc, updateDoc } from "firebase/firestore";
@@ -10,39 +17,87 @@ export default function PedidoActivaCard({ pedidoData, onPedidoEliminado }) {
   const [expandido, setExpandido] = useState(false);
   const [procesando, setProcesando] = useState(false);
 
+  const avanzarEstado = () => {
+    const orden = ["Pendiente", "En camino", "Entregado", "Finalizado"];
+    const estadoActual = pedido.estado || "Pendiente";
+    const siguiente =
+      orden[orden.indexOf(estadoActual) + 1] || "Finalizado";
+
+    if (siguiente === "Finalizado") {
+      moverAHistorial(); // acá sí se actualiza en Firestore
+    } else {
+      // solo actualiza en la UI
+      setPedido((prev) => ({ ...prev, estado: siguiente }));
+    }
+  };
+
   const moverAHistorial = async () => {
     if (procesando) return;
-    setProcesando(true);
 
+    const confirmar =
+      Platform.OS === "web"
+        ? window.confirm("¿Marcar el pedido como finalizado?")
+        : await new Promise((resolve) =>
+          Alert.alert(
+            "Confirmar",
+            "¿Marcar el pedido como finalizado?",
+            [
+              { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
+              { text: "Aceptar", onPress: () => resolve(true) },
+            ],
+            { cancelable: true }
+          )
+        );
+
+    if (!confirmar) return;
+
+    setProcesando(true);
     try {
       const pedidoRef = doc(db, COLECCION_PEDIDO, pedido.id);
-
       await updateDoc(pedidoRef, {
         [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.REALIZADO,
       });
 
       setPedido((prev) => ({ ...prev, estado: "Finalizado" }));
-      console.log(" Pedido marcado como realizado en Firestore");
 
       if (onPedidoEliminado) onPedidoEliminado(pedido.id);
 
-      Alert.alert("Pedido completado", "El pedido fue finalizado correctamente.");
+      if (Platform.OS === "web") {
+        window.alert("Pedido finalizado correctamente");
+      } else {
+        Alert.alert("Éxito", "Pedido finalizado correctamente");
+      }
     } catch (error) {
-      console.error(" Error al actualizar pedido:", error);
-      Alert.alert("Error", "No se pudo marcar el pedido como finalizado.");
+      console.error("Error al finalizar pedido:", error);
+      Alert.alert("Error", "No se pudo marcar como finalizado.");
     } finally {
       setProcesando(false);
     }
   };
 
- 
   const cancelarPedido = async () => {
     if (procesando) return;
-    setProcesando(true);
 
+    const confirmar =
+      Platform.OS === "web"
+        ? window.confirm("¿Rechazar este pedido?")
+        : await new Promise((resolve) =>
+          Alert.alert(
+            "Confirmar rechazo",
+            "¿Estás seguro de rechazar este pedido?",
+            [
+              { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
+              { text: "Rechazar", style: "destructive", onPress: () => resolve(true) },
+            ],
+            { cancelable: true }
+          )
+        );
+
+    if (!confirmar) return;
+
+    setProcesando(true);
     try {
       const pedidoRef = doc(db, COLECCION_PEDIDO, pedido.id);
-
       await updateDoc(pedidoRef, {
         [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.RECHAZADO,
       });
@@ -51,7 +106,11 @@ export default function PedidoActivaCard({ pedidoData, onPedidoEliminado }) {
 
       if (onPedidoEliminado) onPedidoEliminado(pedido.id);
 
-      Alert.alert("Pedido rechazado", "El pedido fue marcado como rechazado correctamente.");
+      if (Platform.OS === "web") {
+        window.alert("Pedido rechazado correctamente");
+      } else {
+        Alert.alert("Pedido rechazado", "Se marcó como rechazado correctamente");
+      }
     } catch (error) {
       console.error("Error al rechazar pedido:", error);
       Alert.alert("Error", "No se pudo rechazar el pedido.");
@@ -60,27 +119,25 @@ export default function PedidoActivaCard({ pedidoData, onPedidoEliminado }) {
     }
   };
 
-  const avanzarEstado = () => {
-    const siguienteEstado = {
-      Pendiente: "En camino",
-      "En camino": "Entregado",
-      Entregado: "Finalizado",
-    }[pedido.estado || "Pendiente"];
-
-    if (siguienteEstado) {
-      if (siguienteEstado === "Finalizado") {
-        moverAHistorial();
-      } else {
-        setPedido((prev) => ({ ...prev, estado: siguienteEstado }));
-      }
-    }
-  };
-
   const producto = pedido.Medicamentos || "Medicamentos no especificados";
-  const cliente = `${pedido.nombreUsuario || ""} ${pedido.apellidoUsuario || ""}`.trim() || "Cliente no especificado";
+  const cliente =
+    `${pedido.nombreUsuario || ""} ${pedido.apellidoUsuario || ""}`.trim() ||
+    "Cliente no especificado";
   const direccion = pedido.direccionUsuario || "Dirección no especificada";
   const monto = pedido.Monto ? `$${pedido.Monto}` : "Monto no especificado";
   const obraSocial = pedido.obraSocialUsuario || "Obra social no especificada";
+
+  const formatFecha = (f) => {
+    try {
+      if (!f) return "Fecha no disponible";
+      if (typeof f?.toDate === "function") return f.toDate().toLocaleString();
+      const d = new Date(f);
+      if (!isNaN(d.getTime())) return d.toLocaleString();
+      return "Fecha no disponible";
+    } catch {
+      return "Fecha no disponible";
+    }
+  };
 
   return (
     <TouchableOpacity
@@ -95,19 +152,36 @@ export default function PedidoActivaCard({ pedidoData, onPedidoEliminado }) {
       disabled={procesando}
     >
       <View style={styles.infoContainer}>
-        <Text style={styles.title}>Pedido #{pedido.id?.substring(0, 8) || "N/A"}</Text>
+        <Text style={styles.title}>
+          Pedido #{pedido.id?.substring(0, 8) || "N/A"}
+        </Text>
 
         <View style={styles.detallesContainer}>
-          <Text style={styles.text}><Text style={styles.label}>Cliente:</Text> {cliente}</Text>
-          <Text style={styles.text}><Text style={styles.label}>Dirección:</Text> {direccion}</Text>
-          <Text style={styles.text}><Text style={styles.label}>Obra social:</Text> {obraSocial}</Text>
-          <Text style={styles.text}><Text style={styles.label}>Monto:</Text> {monto}</Text>
-          <Text style={styles.text}><Text style={styles.label}>Medicamentos:</Text> {producto}</Text>
+          <Text style={styles.text}>
+            <Text style={styles.label}>Cliente: </Text>
+            {cliente}
+          </Text>
+          <Text style={styles.text}>
+            <Text style={styles.label}>Dirección: </Text>
+            {direccion}
+          </Text>
+          <Text style={styles.text}>
+            <Text style={styles.label}>Obra social: </Text>
+            {obraSocial}
+          </Text>
+          <Text style={styles.text}>
+            <Text style={styles.label}>Monto: </Text>
+            {monto}
+          </Text>
+          <Text style={styles.text}>
+            <Text style={styles.label}>Medicamentos: </Text>
+            {producto}
+          </Text>
 
           {pedido.fechaPedido && (
             <Text style={styles.text}>
-              <Text style={styles.label}>Fecha:</Text>{" "}
-              {pedido.fechaPedido.toDate?.().toLocaleDateString() || "Fecha no disponible"}
+              <Text style={styles.label}>Fecha: </Text>
+              {formatFecha(pedido.fechaPedido)}
             </Text>
           )}
         </View>
@@ -115,47 +189,40 @@ export default function PedidoActivaCard({ pedidoData, onPedidoEliminado }) {
         <Text
           style={[
             styles.estado,
-            (pedido.estado === "Pendiente" || !pedido.estado) && { color: theme.colors.primary },
+            pedido.estado === "Pendiente" && { color: theme.colors.primary },
             pedido.estado === "En camino" && { color: theme.colors.secondaryForeground },
             pedido.estado === "Entregado" && { color: theme.colors.success },
             pedido.estado === "Rechazado" && { color: theme.colors.destructive },
-            procesando && { color: theme.colors.mutedForeground },
           ]}
         >
-          Estado: {procesando ? "Procesando..." : pedido.estado || "Pendiente"}
+          Estado: {pedido.estado || "Pendiente"}
         </Text>
 
-        {expandido && pedido.estado !== "Finalizado" && pedido.estado !== "Rechazado" && !procesando && (
-          <View style={styles.botonesContainer}>
-            <TouchableOpacity
-              style={[styles.boton, styles.botonPrimario]}
-              onPress={avanzarEstado}
-              disabled={procesando}
-            >
-              <Text style={styles.botonTexto}>
-                {pedido.estado === "Entregado" ? "Finalizar pedido" : "Avanzar estado"}
-              </Text>
-            </TouchableOpacity>
+        {expandido &&
+          pedido.estado !== "Finalizado" &&
+          pedido.estado !== "Rechazado" && (
+            <View style={styles.botonesContainer}>
+              <TouchableOpacity
+                style={[styles.boton, styles.botonPrimario]}
+                onPress={avanzarEstado}
+                disabled={procesando}
+              >
+                <Text style={styles.botonTexto}>
+                  {pedido.estado === "Entregado"
+                    ? "Finalizar pedido"
+                    : "Avanzar estado"}
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.boton, styles.botonSecundario]}
-              onPress={cancelarPedido}
-              disabled={procesando}
-            >
-              <Text style={styles.botonTexto}>Rechazar</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {procesando && <Text style={styles.procesando}>Actualizando pedido...</Text>}
-
-        {pedido.estado === "Finalizado" && !procesando && (
-          <Text style={styles.finalizado}>Pedido completado</Text>
-        )}
-
-        {pedido.estado === "Rechazado" && !procesando && (
-          <Text style={styles.cancelado}>Pedido rechazado</Text>
-        )}
+              <TouchableOpacity
+                style={[styles.boton, styles.botonSecundario]}
+                onPress={cancelarPedido}
+                disabled={procesando}
+              >
+                <Text style={styles.botonTexto}>Rechazar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
       </View>
     </TouchableOpacity>
   );
@@ -171,23 +238,14 @@ const styles = StyleSheet.create({
     marginHorizontal: theme.spacing.md,
     marginVertical: theme.spacing.sm,
     shadowColor: "#000",
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.3,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
-  cardFinalizado: {
-    opacity: 0.8,
-    backgroundColor: theme.colors.success + "20",
-  },
-  cardCancelado: {
-    opacity: 0.6,
-    backgroundColor: theme.colors.destructive + "20",
-  },
-  cardProcesando: {
-    opacity: 0.7,
-    backgroundColor: theme.colors.muted + "20",
-  },
+  cardFinalizado: { opacity: 0.8, backgroundColor: theme.colors.success + "20" },
+  cardCancelado: { opacity: 0.6, backgroundColor: theme.colors.destructive + "20" },
+  cardProcesando: { opacity: 0.7, backgroundColor: theme.colors.muted + "20" },
   infoContainer: { flex: 1 },
   title: {
     fontSize: theme.typography.fontSize.lg,
@@ -228,24 +286,5 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: theme.typography.fontWeight.medium,
     fontSize: theme.typography.fontSize.sm,
-  },
-  finalizado: {
-    marginTop: theme.spacing.xs,
-    fontSize: theme.typography.fontSize.base,
-    color: theme.colors.success,
-    fontWeight: theme.typography.fontWeight.bold,
-  },
-  cancelado: {
-    marginTop: theme.spacing.xs,
-    fontSize: theme.typography.fontSize.base,
-    color: theme.colors.destructive,
-    fontWeight: theme.typography.fontWeight.bold,
-  },
-  procesando: {
-    marginTop: theme.spacing.xs,
-    fontSize: theme.typography.fontSize.base,
-    color: theme.colors.mutedForeground,
-    fontStyle: "italic",
-    textAlign: "center",
   },
 });

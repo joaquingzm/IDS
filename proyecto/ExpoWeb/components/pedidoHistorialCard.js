@@ -1,9 +1,9 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../styles/theme";
-import { CAMPOS_USUARIO,CAMPOS_PEDIDO,CAMPOS_OFERTA } from "../dbConfig"; // asegúrate de importar correctamente
+import { CAMPOS_USUARIO, CAMPOS_OFERTA, CAMPOS_PEDIDO } from "../dbConfig";
 
-export default function HistorialCard({ pedido,oferta,usuario }) {
+export default function HistorialCard({ pedido, oferta}) {
   if (!pedido) {
     return (
       <View style={styles.card}>
@@ -11,32 +11,46 @@ export default function HistorialCard({ pedido,oferta,usuario }) {
       </View>
     );
   }
+
+  // Protección si oferta/usuario faltan
+  const nombreUsuario = pedido?.[CAMPOS_PEDIDO.NOMBRE_USUARIO] ?? "Desconocido";
+  const apellidoUsuario = pedido?.[CAMPOS_PEDIDO.APELLIDO_USUARIO] ?? "";
+  const direccion = pedido?.[CAMPOS_PEDIDO.DIRECCION] ?? "No disponible";
+  const obraSocial = pedido?.[CAMPOS_PEDIDO.OBRASOCIAL] ?? "No informado";
+
+  // Manejo seguro de fecha (Firestore Timestamp o {seconds, nanoseconds})
+  const fechaRaw = oferta?.[CAMPOS_OFERTA.FECHA_OFERTA];
+  let fechaTexto = "Sin fecha";
+  if (fechaRaw) {
+    if (typeof fechaRaw.toDate === "function") {
+      // Firestore Timestamp
+      fechaTexto = fechaRaw.toDate().toLocaleString();
+    } else if (fechaRaw.seconds != null) {
+      // Objeto plain { seconds, nanoseconds }
+      fechaTexto = new Date(fechaRaw.seconds * 1000).toLocaleString();
+    } else {
+      fechaTexto = String(fechaRaw);
+    }
+  }
+
+  // Medicamentos puede ser array o string
+  const medicamentosRaw = oferta?.[CAMPOS_OFERTA.MEDICAMENTO];
+  const medicamentos =
+    Array.isArray(medicamentosRaw) ? medicamentosRaw.join(", ") : String(medicamentosRaw ?? "No informado");
+
+  const monto = oferta?.[CAMPOS_OFERTA.MONTO] ?? "No informado";
+
   return (
     <View style={styles.card}>
       <Text style={styles.title}>
-        Pedido de {usuario[CAMPOS_USUARIO.NOMBRE]} {usuario[CAMPOS_USUARIO.APELLIDO]}
+        Pedido de {nombreUsuario} {apellidoUsuario}
       </Text>
 
-     <Text style={styles.text}>
-               Fecha de llegada: {oferta[CAMPOS_OFERTA.FECHA_OFERTA]}
-     </Text>
-      
-      <Text style={styles.text}>
-                Direccion: {usuario[CAMPOS_USUARIO.DIRECCION]}
-      </Text>
-
-      <Text style={styles.text}>
-                Obra social: {usuario[CAMPOS_USUARIO.OBRASOCIAL]}
-      </Text>      
-      
-      <Text style={styles.text}>
-                Medicamentos: {oferta[CAMPOS_OFERTA.MEDICAMENTO]}
-      </Text> 
-
-      
-      <Text style={styles.text}>
-                Monto: {oferta[CAMPOS_OFERTA.MONTO]}
-      </Text>  
+      <Text style={styles.text}>Fecha de llegada: {fechaTexto}</Text>
+      <Text style={styles.text}>Dirección: {direccion}</Text>
+      <Text style={styles.text}>Obra social: {obraSocial}</Text>
+      <Text style={styles.text}>Medicamentos: {medicamentos}</Text>
+      <Text style={styles.text}>Monto: {monto}</Text>
     </View>
   );
 }

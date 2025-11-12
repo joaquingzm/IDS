@@ -5,17 +5,78 @@ import CardPedidoEntrante from "../components/pedidoEntranteCard";
 import { listenPedidosPorEstado } from "../utils/firestoreService";
 import {
   ESTADOS_PEDIDO,
+  CAMPOS_FARMACIA,
 } from "../dbConfig"
+import { auth } from "../firebase";
+import { getFarmaciaById } from "../utils/firestoreService";
 
 export default function OrdersPendingScreen() {
   const [pedidos, setPedidos] = useState([]);
+  const [farmacia, setFarmacia] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Obtener farmacia actual (la que está logueada) — usamos onAuthStateChanged para mayor fiabilidad
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchFarmacia = async (uid, email) => {
+      try {
+        const data = await getFarmaciaById(uid); // debe devolver { id, ...fields } or null
+        // Normalizamos las posibles variantes del campo nombre
+        const nombre =
+          data?.[CAMPOS_FARMACIA.NOMBRE] ??
+          data?.nombre ??
+          data?.nombre_farmacia ??
+          data?.nombreDeFarmacia ??
+          data?.name ??
+          null;
+
+        const farmaciaNormalizada = data
+          ? {
+            id: data.id ?? uid,
+            // garantizamos que exista la clave esperada por la app
+            [CAMPOS_FARMACIA.NOMBRE]: nombre ?? "Farmacia desconocida",
+            ...data,
+          }
+          : {
+            id: uid ?? "unknown",
+            [CAMPOS_FARMACIA.NOMBRE]: "Farmacia desconocida",
+          };
+
+        if (isMounted) setFarmacia(farmaciaNormalizada);
+      } catch (err) {
+        console.error("Error al obtener la farmacia:", err);
+        if (isMounted) {
+          setFarmacia({
+            [CAMPOS_FARMACIA.NOMBRE]: "Farmacia desconocida",
+          });
+        }
+      }
+    };
+
+    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+      if (!user) {
+        if (isMounted) setFarmacia(null);
+        return;
+      }
+      fetchFarmacia(user.uid, user.email);
+    });
+
+    return () => {
+      isMounted = false;
+      if (typeof unsubscribeAuth === "function") unsubscribeAuth();
+    };
+  }, []);
+
+  // Listener de pedidos por estado
   useEffect(() => {
     const unsub = listenPedidosPorEstado(ESTADOS_PEDIDO.ENTRANTE, (items) => {
       setPedidos(items);
       setLoading(false);
     });
-    return () => unsub();
+    return () => {
+      if (typeof unsub === "function") unsub();
+    };
   }, []);
 
   if (loading) {
@@ -33,8 +94,20 @@ export default function OrdersPendingScreen() {
       {pedidos.length > 0 ? (
         <FlatList
           data={pedidos}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <CardPedidoEntrante pedido={item} />}
+          keyExtractor={(item) => item.id || item.docId || JSON.stringify(item)}
+          renderItem={({ item }) => (
+            <CardPedidoEntrante
+              pedido={item}
+              farmacia={
+                farmacia || {
+                  [CAMPOS_FARMACIA.NOMBRE]: "Farmacia desconocida",
+                }
+              }
+              monto={item.monto || ""}
+              medicamento={item.medicamento || []}
+              tiempoEspera={item.tiempoEspera || null}
+            />
+          )}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContainer}
         />
@@ -78,5 +151,10 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.lg,
     marginTop: theme.spacing.lg,
     opacity: 0.8,
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

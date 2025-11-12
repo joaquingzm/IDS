@@ -1,23 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'; 
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity, View, StyleSheet, Image, Alert, Platform } from 'react-native';
 import { openCameraAndTakePhoto } from '../utils/cameraUtils';
 import { theme } from '../styles/theme';
 import { COLECCION_PEDIDO_FARMACIA, CAMPOS_PEDIDO_FARMACIA } from "../dbConfig";
 import { db, auth } from "../firebase";
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";  
+import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 import { uploadImageToCloudinary } from "../context/uploadImage";
 import { useNavigation } from "@react-navigation/native";
-import {getUsuarioByEmail,getUsuarioByUid, crearPedido} from "../utils/firestoreService"
+import { getUsuarioByEmail, getUsuarioByUid, crearPedido } from "../utils/firestoreService"
 
 // Import de las  pantallas
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
-import SearchScreen from '../screens/SearchScreen'; 
-import OfertsScreen from '../screens/OfertsScreen';     
-import ProfileScreen from '../screens/ProfileScreen';        
+import SearchScreen from '../screens/SearchScreen';
+import OfertsScreen from '../screens/OfertsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 import OfertsPendingScreen from '../screens/OfertsPendingScreen';
@@ -37,7 +37,7 @@ import {
 } from "../dbConfig";
 
 const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator(); 
+const Tab = createBottomTabNavigator();
 
 
 function PlaceholderScreen() {
@@ -63,151 +63,163 @@ function MainTabs() {
   const [photoUri, setPhotoUri] = useState(null);
   const navigation = useNavigation();
   const handleCameraPress = async () => {
-  console.log("Abrir cámara...");
-  const uri = await openCameraAndTakePhoto();
-  if (uri) {
+    console.log("Abrir cámara...");
+    const uri = await openCameraAndTakePhoto();
+    if (!uri) {
+      console.log("No se obtuvo URI de la cámara.");
+      return;
+    }
+
     // ENVIAR AL BACKEND
     try {
+
+      console.log("Convirtiendo URI a blob...", uri);
+      const responseUri = await fetch(uri);
+      const blob = await responseUri.blob();
+      console.log("Blob creado, size:", blob.size, "type:", blob.type);
+
       // DESPUÉS: PROCESAR OCR (código intacto como estaba)
       const formData = new FormData();
 
-      // IMPORTANTE: Formato según plataforma
-      let fileType = { type: "image/jpeg" };
-
-      if (Platform.OS === "web") {
-        // En web: convertir blob a File
-        const response = await fetch(uri);
-        const blob = await response.blob();
-        formData.append("file", blob, `photo_${Date.now()}.jpg`);
-      } else {
-        // En móvil: usar uri local
-        formData.append("file", {
-          uri,
-          name: `photo_${Date.now()}.jpg`,
-          type: "image/jpeg",
-        });
+      formData.append("file", blob, `photo_${Date.now()}.jpg`);
+      console.log("Enviando imagen al backend OCR...");
+      const formDataOCR = new FormData();
+      // convert URI -> blob
+      const resp = await fetch(uri);
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        throw new Error(`No se pudo leer la imagen localmente. status=${resp.status} body=${txt}`);
       }
+      const blobOCR = await resp.blob();
+      formDataOCR.append("file", blobOCR, `photo_${Date.now()}.jpg`);
 
-      const res = await fetch("http://10.0.2.15:8000/ocr", {
-        //IP LOCAL DE LA MAQUINA
+
+      const OCR_URL = "http://163.10.141.100:8000/ocr";
+      const ocrRes = await fetch(OCR_URL, {
         method: "POST",
-        body: formData,
+        body: formDataOCR,
       });
 
-      const resultOCR = await res.json();
-      console.log("Respuesta del backend:", resultOCR);
 
-      console.log("Subiendo imagen a Cloudinary...");
-      const imageUrl = await uploadImageToCloudinary(uri);
-      console.log("Imagen subida con éxito:", imageUrl);
-        //----------------------------------------------------------------------------
-      try {
-        const currentUser = auth.currentUser;
-        if (!currentUser) {
-          Alert.alert("Error", "Usuario no autenticado");
-          return;
-        }
 
-        console.log("Intentando crear pedido para usuario:", currentUser.email);
-        const usuario = await getUsuarioByUid(currentUser.uid);
-
-        // Crear el documento en "PedidosFarmacia"
-        const idPedido = await crearPedido({
-          // Info cliente
-          [CAMPOS_PEDIDO.USER_ID]: currentUser.uid,
-          [CAMPOS_PEDIDO.NOMBRE_USUARIO]: usuario[CAMPOS_USUARIO.NOMBRE],
-          [CAMPOS_PEDIDO.APELLIDO_USUARIO]: usuario[CAMPOS_USUARIO.APELLIDO],
-          [CAMPOS_PEDIDO.OBRASOCIAL]: usuario[CAMPOS_USUARIO.OBRASOCIAL],
-          [CAMPOS_PEDIDO.DIRECCION]: usuario[CAMPOS_USUARIO.DIRECCION],
-
-          // Info pedido
-          [CAMPOS_PEDIDO.IMAGEN]: imageUrl,
-          [CAMPOS_PEDIDO.OCR]: resultOCR,
-          [CAMPOS_PEDIDO.FECHA_PEDIDO]: Date(),
-
-          // Estado pedido
-          [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.ENTRANTE, // entrante, pendiente, activo, realizado, rechazado
-          [CAMPOS_PEDIDO.OFERTA_ACEPTADA_ID]: "ofertaAceptadaId",
-          [CAMPOS_PEDIDO.FARMACIA_ASIGANADA_ID]: "farmaciaAsignadaID",
-
-          // Ofertas
-          [CAMPOS_PEDIDO.OFERTAS_IDS]: "ofertasId",
-        });
-        console.log("Pedido guardado en Firestore correctamente, id: " + idPedido);
-        //------------------------------------------------------------------------------------
-          if (Platform.OS === 'web') {
-          window.alert("Pedido registrado.\nEstamos esperando ofertas hechas por las farmacias.");
-          navigation.navigate("OfertsPending");
-        } else {
-          Alert.alert(
-            "Pedido registrado",
-            "Estamos esperando ofertas hechas por las farmacias",
-            [{ text: "OK", onPress: () => navigation.navigate("OfertsPending") }]
-          );
-        }
-      } catch (firestoreError) {
-        console.error(" Error guardando pedido en Firestore:", firestoreError);
-        Alert.alert("Error", "No se pudo guardar el pedido en la base de datos");
+      if (!ocrRes.ok) {
+        const body = await ocrRes.text().catch(() => null);
+        console.error("OCR backend error:", ocrRes.status, body);
+        Alert.alert("Error", "El servidor OCR devolvió un error: " + (body || ocrRes.status));
         return;
       }
 
+
+      const resultOCR = await ocrRes.json().catch(() => null);
+      console.log("Respuesta OCR:", resultOCR);
+
+      // 👇 2) Subir imagen a Cloudinary (usamos la función mejorada)
+      console.log("Subiendo imagen a Cloudinary...");
+      const imageUrl = await uploadImageToCloudinary(uri); // usa la función mejorada
+      console.log("Imagen subida con éxito:", imageUrl);
+
+      // 👇 3) Crear pedido en Firestore
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        Alert.alert("Error", "Usuario no autenticado");
+        return;
+      }
+
+      // Obtener datos del usuario
+      const usuario = await getUsuarioByUid(currentUser.uid);
+      if (!usuario) {
+        Alert.alert("Error", "No se pudo obtener información del usuario");
+        return;
+      }
+
+
+      // Preparar payload (crearPedido ya coloca serverTimestamp() internamente)
+      const payload = {
+        [CAMPOS_PEDIDO.USER_ID]: currentUser.uid,
+        [CAMPOS_PEDIDO.NOMBRE_USUARIO]: usuario[CAMPOS_USUARIO.NOMBRE] || "",
+        [CAMPOS_PEDIDO.APELLIDO_USUARIO]: usuario[CAMPOS_USUARIO.APELLIDO] || "",
+        [CAMPOS_PEDIDO.OBRASOCIAL]: usuario[CAMPOS_USUARIO.OBRASOCIAL] || "",
+        [CAMPOS_PEDIDO.DIRECCION]: usuario[CAMPOS_USUARIO.DIRECCION] || "",
+        [CAMPOS_PEDIDO.IMAGEN]: imageUrl,
+        [CAMPOS_PEDIDO.OCR]: resultOCR || null,
+        // no seteamos FECHA_PEDIDO (crearPedido lo hace con serverTimestamp)
+        [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.ENTRANTE,
+      };
+
+
+
+      const idPedido = await crearPedido(payload);
+      console.log("Pedido guardado en Firestore correctamente, id:", idPedido);
+
+      // Feedback al usuario y navegación
+      if (Platform.OS === 'web') {
+        window.alert("Pedido registrado.\nEstamos esperando ofertas hechas por las farmacias.");
+        navigation.navigate("OfertsPending");
+      } else {
+        Alert.alert(
+          "Pedido registrado",
+          "Estamos esperando ofertas hechas por las farmacias",
+          [{ text: "OK", onPress: () => navigation.navigate("OfertsPending") }]
+        );
+      }
+
     } catch (error) {
-      console.error("Error enviando imagen:", error);
-      Alert.alert("Error", "No se pudo procesar la imagen");
+      console.error("Error en handleCameraPress:", error);
+      Alert.alert("Error", "No se pudo procesar la imagen: " + (error.message || error));
     }
-  }
-};
+
+  };
 
 
   return (<View style={styles.container}>
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          headerShown: false,
-          tabBarShowLabel: false,
-          tabBarActiveTintColor: theme.colors.primary,
-          tabBarInactiveTintColor: theme.colors.mutedForeground,
-          tabBarStyle: styles.tabBar,
-          tabBarIcon: ({ focused, color, size }) => {
-            let iconName;
-            if (route.name === 'Home') {
-              iconName = focused ? 'home' : 'home-outline';
-            } else if (route.name === 'Search') {
-              iconName = focused ? 'search' : 'search-outline';
-            } else if (route.name === 'Oferts') {
-              iconName = focused ? 'cube' : 'cube-outline';
-            } else if (route.name === 'Profile') {
-              iconName = focused ? 'person' : 'person-outline';
-            }
-            if (route.name === 'CameraPlaceholder') return null;
-            return <Ionicons name={iconName} size={size} color={color} />;
-          },
-        })}
-      >
-        <Tab.Screen name="Home" component={HomeScreen} />
-        <Tab.Screen name="Search" component={SearchScreen} />
-        <Tab.Screen
-          name="CameraPlaceholder"
-          component={PlaceholderScreen}
-          options={{
-            tabBarButton: (props) => (
-              <CustomTabBarButton {...props} onPress={handleCameraPress}>
-                <Ionicons name="camera" size={28} color={theme.colors.background} />
-              </CustomTabBarButton>
-            ),
-          }}
-        />
-        <Tab.Screen name="Oferts" component={OfertsScreen} />
-        <Tab.Screen name="Profile" component={ProfileScreen} />
-      </Tab.Navigator>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarShowLabel: false,
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.mutedForeground,
+        tabBarStyle: styles.tabBar,
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+          if (route.name === 'Home') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Search') {
+            iconName = focused ? 'search' : 'search-outline';
+          } else if (route.name === 'Oferts') {
+            iconName = focused ? 'cube' : 'cube-outline';
+          } else if (route.name === 'Profile') {
+            iconName = focused ? 'person' : 'person-outline';
+          }
+          if (route.name === 'CameraPlaceholder') return null;
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Search" component={SearchScreen} />
+      <Tab.Screen
+        name="CameraPlaceholder"
+        component={PlaceholderScreen}
+        options={{
+          tabBarButton: (props) => (
+            <CustomTabBarButton {...props} onPress={handleCameraPress}>
+              <Ionicons name="camera" size={28} color={theme.colors.background} />
+            </CustomTabBarButton>
+          ),
+        }}
+      />
+      <Tab.Screen name="Oferts" component={OfertsScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
+    </Tab.Navigator>
 
-      {/* IMAGEN FLOTANTE: ABAJO A LA DERECHA */}
-      {photoUri && (
-        <Image
-          source={{ uri: photoUri }}
-          style={styles.floatingThumbnail}
-        />
-      )}
-    </View>);
+    {/* IMAGEN FLOTANTE: ABAJO A LA DERECHA */}
+    {photoUri && (
+      <Image
+        source={{ uri: photoUri }}
+        style={styles.floatingThumbnail}
+      />
+    )}
+  </View>);
 }
 
 export default function AppNavigator() {

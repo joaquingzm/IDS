@@ -5,12 +5,14 @@ export async function openCameraAndTakePhoto() {
   try {
     // 1. Permisos (solo en móvil)
     if (Platform.OS !== 'web') {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        alert('Se necesitan permisos de cámara');
+      const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+      const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (cameraStatus !== 'granted' || mediaStatus !== 'granted') {
+        alert('Se necesitan permisos de cámara y galería');
         return null;
       }
     }
+
 
     // 2. Tomar foto
     const result = await ImagePicker.launchCameraAsync({

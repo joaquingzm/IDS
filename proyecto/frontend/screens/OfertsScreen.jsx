@@ -3,62 +3,72 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from "re
 import { theme } from "../styles/theme";
 import PedidoUsuarioCard from "../components/PedidoCard";
 import { StatusCardButton } from "../components/StatusCardButton";
-import { db, auth } from "../firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { COLECCION_PEDIDO, CAMPOS_PEDIDO, ESTADOS_PEDIDO } from "../dbConfig";
-import { listPedidosByUser } from "../utils/firestoreService";
+import { auth } from "../firebase";
+import { CAMPOS_PEDIDO, CAMPOS_OFERTA, ESTADOS_PEDIDO, ESTADOS_OFERTA } from "../dbConfig";
+import firestoreService, { listenPedidosPorEstado } from "../utils/firestoreService";
 
 export default function OfertsScreen({ navigation }) {
   const [pedidoActual, setPedidoActual] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchPedidoActual = async () => {
+    let unsubscribe = null;
+
+    const subscribeToPedidos = async () => {
       try {
-        const currentUserId = auth.currentUser ? auth.currentUser.uid : null;
+        const currentUserId = auth.currentUser?.uid;
         if (!currentUserId) {
           setPedidoActual(null);
           setLoading(false);
           return;
         }
 
-        const allPedidos = await listPedidosByUser(currentUserId);
-        
-        
-        const pedidosActivos = allPedidos.filter(
-          (p) => (p[CAMPOS_PEDIDO.ESTADO] ?? p.estado) === ESTADOS_PEDIDO.ENTRANTE
-        );
+        // 🔥 Escuchamos solo los pedidos activos
+        unsubscribe = listenPedidosPorEstado(ESTADOS_PEDIDO.ACTIVO, async (pedidosActivos) => {
+          try {
+            // Filtramos los pedidos del usuario actual
+            const pedidosUser = pedidosActivos.filter(
+              (p) => p[CAMPOS_PEDIDO.USER_ID] === currentUserId
+            );
 
+            if (pedidosUser.length === 0) {
+              setPedidoActual(null);
+              setLoading(false);
+              return;
+            }
 
-        if (pedidosActivos.length === 0) {
-          setPedidoActual(null);
-          return;
-        }
+            const pedido = pedidosUser[0];
 
-        const pedido = pedidosActivos[0];
+            // Enriquecer el pedido
+            const ofertas = await firestoreService.listOfertasForPedido(pedido.id);
+            const ofertaSeleccionada = ofertas.find(
+              (of) => of[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.ACEPTADA
+            );
 
-        // 3️⃣ Enriquecer pedido con oferta y farmacia
-        const ofertas = await firestoreService.listOfertasForPedido(pedido.id);
-        const ofertaSeleccionada = ofertas.find(
-          (of) => of[CAMPOS_OFERTA.ESTADO] === "ACEPTADA"
-        );
+            let farmacia = null;
+            if (ofertaSeleccionada?.farmaciaId) {
+              farmacia = await firestoreService.getFarmaciaById(ofertaSeleccionada.farmaciaId);
+            }
 
-        let farmacia = null;
-        if (ofertaSeleccionada?.farmaciaId) {
-          farmacia = await firestoreService.getFarmaciaById(ofertaSeleccionada.farmaciaId);
-        }
-
-        setPedidoActual({ pedido, oferta: ofertaSeleccionada, farmacia });
-      
+            setPedidoActual({ pedido, farmacia, ofertaSeleccionada });
+          } catch (err) {
+            console.error("Error procesando pedidos activos:", err);
+          } finally {
+            setLoading(false);
+          }
+        });
       } catch (error) {
-        console.error("Error al cargar pedido actual:", error);
-        Alert.alert("Error", "No se pudo cargar el pedido actual.");
-      } finally {
+        console.error("Error al escuchar pedidos:", error);
+        Alert.alert("Error", "No se pudo cargar los pedidos en tiempo real.");
         setLoading(false);
       }
     };
 
-    fetchPedidoActual();
+    subscribeToPedidos();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   return (
@@ -74,7 +84,6 @@ export default function OfertsScreen({ navigation }) {
         <Text style={styles.headerSubtitle}>Disponible 24/7</Text>
       </View>
 
-     
       <View style={styles.content}>
         <Text style={styles.sectionTitle}>Tu Pedido Actual</Text>
 
@@ -83,7 +92,7 @@ export default function OfertsScreen({ navigation }) {
         ) : pedidoActual ? (
           <PedidoUsuarioCard
             pedido={pedidoActual.pedido}
-            oferta={pedidoActual.oferta}
+            oferta={pedidoActual.ofertaSeleccionada}
             farmacia={pedidoActual.farmacia}
           />
         ) : (

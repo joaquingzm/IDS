@@ -43,11 +43,11 @@ export const CAMPOS_FARMACIA = {
   DIRECCION: "Direccion",
   FECHA_REGISTRO: "fechaRegistro",
   TELEFONO: "Telefono comercial",
-  ROL:"rol",
+  ROL: "rol",
 };
 
 
-export const COLECCION_PEDIDO = "PedidosFarmacia";
+export const COLECCION_PEDIDO = "Pedidos";
 
 export const CAMPOS_PEDIDO = {
   // Info cliente

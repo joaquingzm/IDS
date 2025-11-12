@@ -45,7 +45,7 @@ export const CAMPOS_FARMACIA = {
 };
 
 
-export const COLECCION_PEDIDO = "PedidosFarmacia";
+export const COLECCION_PEDIDO = "Pedidos";
 
 export const CAMPOS_PEDIDO = {
   // Info cliente

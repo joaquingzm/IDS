@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image, TextInput, Pressable, Modal } from "react-native";
 import { db } from "../firebase";
-import { doc, setDoc, deleteDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, deleteDoc, getDoc , serverTimestamp } from "firebase/firestore";
 import { theme } from "../styles/theme";
 import {
   COLECCION_USUARIOS,
@@ -15,12 +15,16 @@ import {
   ESTADOS_PEDIDO,
   ESTADOS_OFERTA,
 } from "../dbConfig";
+import { updatePedido , crearOferta } from "../utils/firestoreService";
+import { auth } from "../firebase";
 
-export default function CardPedidoEntrante({ pedido }) {
+export default function CardPedidoEntrante({ pedido , farmacia , tiempoEspera }) {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [medicamentos, setMedicamentos] = useState("");
   const [monto, setMonto] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
+  const farmaciaU = auth.currentUser;
+  const farmaciaId = farmaciaU.uid;
 
   const handleAceptarPress = () => {
     setMostrarFormulario(true);
@@ -33,26 +37,26 @@ export default function CardPedidoEntrante({ pedido }) {
     }
 
     try {
-      
+
       await updatePedido(pedido.id, {
         [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.PENDIENTE,
       });
 
-      await crearOferta(pedido.id,{
-        [CAMPOS_OFERTA.FARMACIA_ID]: pedidoData.farmaciaId || "",
-        [CAMPOS_OFERTA.NOMBRE_FARMACIA]: pedidoData.nombreFarmacia || "",
-        [CAMPOS_OFERTA.MONTO]: pedidoData.monto || 0,
-        [CAMPOS_OFERTA.MEDICAMENTO]: pedidoData.medicamento || [],
-        [CAMPOS_OFERTA.TIEMPO_ESPERA]: pedidoData.tiempoEspera || null,
+      await crearOferta(pedido.id, {
+        [CAMPOS_OFERTA.FARMACIA_ID]: farmaciaId || "",
+        [CAMPOS_OFERTA.NOMBRE_FARMACIA]: farmacia[CAMPOS_FARMACIA.NOMBRE] || "",
+        [CAMPOS_OFERTA.MONTO]: monto || 0,
+        [CAMPOS_OFERTA.MEDICAMENTO]: medicamentos || [],
+        [CAMPOS_OFERTA.TIEMPO_ESPERA]: tiempoEspera || null,
         [CAMPOS_OFERTA.FECHA_OFERTA]: serverTimestamp(),
         [CAMPOS_OFERTA.ESTADO]: ESTADOS_OFERTA?.PENDIENTE || "pendiente",
       });
-     
-      
+
+
 
       console.log(" Pedido aceptado y movido correctamente a PedidosAceptados");
       alert("Pedido aceptado con éxito");
-      
+
       // Resetear el estado
       setMostrarFormulario(false);
       setMedicamentos("");
@@ -71,7 +75,9 @@ export default function CardPedidoEntrante({ pedido }) {
 
   const handleRechazar = async () => {
     try {
-      await deleteDoc(doc(db, "PedidosFarmacia", pedido.id));
+      await updatePedido(pedido.id, {
+        [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.RECHAZADO,
+      });
       console.log(" Pedido rechazado y eliminado");
       alert("Pedido rechazado y eliminado");
     } catch (error) {
@@ -80,7 +86,7 @@ export default function CardPedidoEntrante({ pedido }) {
     }
   };
 
-  
+
   const nombre = pedido[CAMPOS_PEDIDO.NOMBRE_USUARIO] || "No especificado";
   const apellido = pedido[CAMPOS_PEDIDO.APELLIDO_USUARIO] || "No especificado";
   const direccion = pedido[CAMPOS_PEDIDO.DIRECCION] || "No especificado";
@@ -118,7 +124,7 @@ export default function CardPedidoEntrante({ pedido }) {
         {direccion && <Text style={styles.text}>Dirección: {direccion}</Text>}
         {obraSocial && <Text style={styles.text}>Obra social: {obraSocial}</Text>}
         {/*MODIFICAR*/}
-        {textOCR && <Text style={styles.text}>Obra social: {textOCR}</Text>}
+        {textOCR && <Text style={styles.text}>Medicamento detectado: {Object.values(textOCR).join(" , ")}</Text>}
         {fechaPedido && (
           <Text style={styles.text}>
             Fecha de llegada: {fechaPedido.toLocaleDateString()}{" "}
