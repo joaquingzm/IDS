@@ -278,7 +278,7 @@ export function listenPedidosPorEstadoYFarmacia(state, farmaciaId, onUpdate) {
     const q = query(
         collection(db, COLECCION_PEDIDO),
         where(CAMPOS_PEDIDO.ESTADO, "==", state),
-        where(CAMPOS_PEDIDO.FARMACIA_ASIGANADA_ID, "==", farmaciaId),
+        where(CAMPOS_PEDIDO.FARMACIA_ASIGNADA_ID, "==", farmaciaId),
         orderBy(CAMPOS_PEDIDO.FECHA_PEDIDO, "desc")
     );
 

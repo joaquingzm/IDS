@@ -23,8 +23,7 @@ export default function CardPedidoEntrante({ pedido , farmacia , tiempoEspera })
   const [medicamentos, setMedicamentos] = useState("");
   const [monto, setMonto] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
-  const farmaciaU = auth.currentUser;
-  const farmaciaId = farmaciaU.uid;
+  const farmaciaId = auth.currentUser?.uid;
 
   const handleAceptarPress = () => {
     setMostrarFormulario(true);
@@ -40,6 +39,7 @@ export default function CardPedidoEntrante({ pedido , farmacia , tiempoEspera })
 
       await updatePedido(pedido.id, {
         [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.PENDIENTE,
+        [CAMPOS_PEDIDO.FARMACIA_ASIGNADA_ID]: farmaciaId,
       });
 
       await crearOferta(pedido.id, {

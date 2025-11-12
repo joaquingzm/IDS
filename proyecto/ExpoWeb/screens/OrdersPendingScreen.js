@@ -14,6 +14,7 @@ export default function OrdersPendingScreen() {
   useEffect(() => {
       const unsub = listenPedidosPorEstadoYFarmacia(ESTADOS_PEDIDO.PENDIENTE, farmaciaId, (items) => {
         setPedidos(items);
+        console.log("📦 Pedido creado:", pedidos);
         setLoading(false);
       });
       return () => unsub();
@@ -81,5 +82,10 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.lg,
     marginTop: theme.spacing.lg,
     opacity: 0.8,
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

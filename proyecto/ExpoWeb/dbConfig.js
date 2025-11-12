@@ -63,7 +63,7 @@ export const CAMPOS_PEDIDO = {
   // Estado pedido
   ESTADO: "estado", // entrante, pendiente, activo, realizado, rechazado
   OFERTA_ACEPTADA_ID: "ofertaAceptadaId",
-  FARMACIA_ASIGANADA_ID: "farmaciaAsignadaID",
+  FARMACIA_ASIGNADA_ID: "farmaciaAsignadaID",
 
   // Ofertas
   OFERTAS_IDS: "ofertasId",

@@ -94,7 +94,7 @@ function MainTabs() {
       formDataOCR.append("file", blobOCR, `photo_${Date.now()}.jpg`);
 
 
-      const OCR_URL = "http://163.10.141.100:8000/ocr";
+      const OCR_URL = "http://10.0.2.15:8000/ocr";
       const ocrRes = await fetch(OCR_URL, {
         method: "POST",
         body: formDataOCR,
