@@ -20,6 +20,9 @@ import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { COLECCION_USUARIOS } from "../dbConfig";
 import firestoreService from "../utils/firestoreService";
+import * as Burnt from "burnt";
+import { alertPresets } from "../utils/alertPresets";
+import { useAlert } from "../context/AlertContext";
 
 export default function LoginScreen({ navigation }) {
   const { login } = useContext(AuthContext);
@@ -27,12 +30,16 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState("");
   const { goRegister } = useNav();
   const [loading, setLoading] = useState(false);
+  const { showAlert } = useAlert();
 
 
   async function handleLogin() {
     
     if (!email || !password) {
-      Alert.alert("Error", "Completá email y contraseña");
+     showAlert("error_red", {
+        title: "Campos incompletos",
+        message: "Completá email y contraseña",
+      });
       return;
     }
 
@@ -50,12 +57,13 @@ export default function LoginScreen({ navigation }) {
         }
       } catch (err) {
         console.warn("Error obteniendo usuario desde firestoreService:", err);
+        showAlert("error_red", { message: "Error al obtener usuario" });
       }
 
       if (!usuario) {
         // No existe el perfil en la colección de usuarios -> desloguear y avisar
         await auth.signOut();
-        Alert.alert("Error", "Email o contraseña incorrectos (sin perfil)");
+        showAlert("error_red", { message: "Email o contraseña incorrectos (sin perfil)" });
         setLoading(false);
         return;
       }
@@ -80,7 +88,7 @@ export default function LoginScreen({ navigation }) {
       navigation.replace("MainAppTabs");
     } catch (error) {
       console.log("Error al iniciar sesión:", error?.message ?? error);
-      Alert.alert("Error", "Email o contraseña incorrectos");
+       showAlert("error_red", { message: "Email o contraseña incorrectos" });
     } finally {
       setLoading(false);
     }
