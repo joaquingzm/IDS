@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ScrollView, Alert, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ScrollView, Alert, Platform, Modal, ActivityIndicator } from "react-native";
 import { theme } from "../styles/theme";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase";
 import useNav from "../hooks/UseNavigation";
-import { crearUsuario } from "../utils/firestoreService";
+import { crearUsuario, checkUsuarioExistente } from "../utils/firestoreService";
+import { useAlert } from "../context/AlertContext";
 
 
 export default function RegisterScreen() {
@@ -14,66 +15,66 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [dni, setDni] = useState("");
   const [obraSocial, setObraSocial] = useState("");
+  const [obraSocialNum, setObraSocialNum] = useState("");
   const [direccion, setDireccion] = useState("");
   const {navigation} = useNav();
+  const [loading, setLoading]= useState(false);
+  const { showAlert } = useAlert();
  
   
 
  const handleRegister = async () => {
-  try {
+  setLoading(true);
+  if (
+  !nombre.trim() ||
+  !apellido.trim() ||
+  !email.trim() ||
+  !password.trim() ||
+  !dni.trim() ||
+  !direccion.trim()) {
+  showAlert("registro_error", { message: "Campos obligatorios en blanco." });
+  setLoading(false);
+  return;
+}
+try {
+  const {emailExistente, dniExistente, obraExistente} = await checkUsuarioExistente(email, dni, obraSocial, obraSocialNum);
+
+  if (emailExistente){
+    showAlert("registro_error", { message: "El mail ya está registrado." });
+    setLoading(false);
+    return
+  }
+
+  if (dniExistente){
+    showAlert("registro_error", { message: "El DNI ya está registrado." });
+    setLoading(false);
+    return
+  }
+
+  if (obraSocial.trim() && obraSocialNum.trim()){
+    if (obraExistente){
+      showAlert("registro_error", { message: "El número de afiliado de "+obraSocial+" ya está registrado." });
+      setLoading(false);
+      return
+    }
+  }else{
+    setObraSocial(undefined);
+    setObraSocialNum(undefined);
+  }
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
-
+    console.log("Antes de crear");
     await crearUsuario(
-      { email, nombre, apellido, rol: "cliente", obraSocial, dni, direccion },
+      { email, nombre, apellido, rol: "cliente", obraSocial, obraSocialNum, dni, direccion },
       user.uid 
     );
-
-   
-    if (Platform.OS === 'web') {
-      window.alert("Registro exitoso\nTu cuenta se creó correctamente");
+      showAlert("registro_success",nombre);
+      setLoading(false);
       navigation.navigate("Login");
-    } else {
-   
-      Alert.alert(
-        "Registro exitoso", 
-        "Tu cuenta se creó correctamente", 
-        [
-          { 
-            text: "OK", 
-            onPress: () => navigation.navigate("Login") 
-          }
-        ]
-      );
-    }
-
   } catch (error) {
-    
-    if (Platform.OS === 'web') {
-      if (error.code === "auth/email-already-in-use") {
-        window.alert("Correo ya registrado\nEste correo ya está registrado. Iniciá sesión o usá otro correo.");
-      } else if (error.code === "auth/weak-password") {
-        window.alert("Contraseña débil\nLa contraseña debe tener al menos 6 caracteres");
-      } else if (error.code === "auth/invalid-email") {
-        window.alert("Email inválido\nEl formato del email no es correcto");
-      } else {
-        window.alert("Error: " + error.message);
-      }
-    } else {
-    
-      if (error.code === "auth/email-already-in-use") {
-        Alert.alert(
-          "Correo ya registrado",
-          "Este correo ya está registrado. Iniciá sesión o usá otro correo."
-        );
-      } else if (error.code === "auth/weak-password") {
-        Alert.alert("Error", "La contraseña debe tener al menos 6 caracteres");
-      } else if (error.code === "auth/invalid-email") {
-        Alert.alert("Error", "El email no tiene un formato válido");
-      } else {
-        Alert.alert("Error al registrar usuario", error.message);
-      }
-    }
+    showAlert("registro_error", { message: "Hubo un error al crear el Usuario, intentelo nuevamente." });
+    console.log(error)
+    setLoading(false);
   }
 };
 
@@ -92,6 +93,7 @@ export default function RegisterScreen() {
           <TextInput style={styles.input} placeholder="Contraseña" placeholderTextColor={theme.colors.mutedForeground} secureTextEntry value={password} onChangeText={setPassword} />
           <TextInput style={styles.input} placeholder="DNI" placeholderTextColor={theme.colors.mutedForeground} keyboardType="numeric" value={dni} onChangeText={setDni} />
           <TextInput style={styles.input} placeholder="Obra Social (opcional)" placeholderTextColor={theme.colors.mutedForeground} value={obraSocial} onChangeText={setObraSocial} />
+          <TextInput style={styles.input} placeholder="Numero Obra Social (opcional)" placeholderTextColor={theme.colors.mutedForeground} value={obraSocialNum} onChangeText={setObraSocialNum} />
           <TextInput style={styles.input} placeholder="Dirección" placeholderTextColor={theme.colors.mutedForeground} value={direccion} onChangeText={setDireccion} />
 
           <TouchableOpacity style={styles.button} onPress={handleRegister}>
@@ -105,6 +107,17 @@ export default function RegisterScreen() {
             </Text>
           </Text>
         </View>
+        <Modal
+          visible={loading}
+          transparent={true}
+          animationType="fade"
+          statusBarTranslucent={true}
+          >
+          <View style={styles.overlay}>
+          {/* 🔹 Spinner de carga */}
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+          </View>
+          </Modal>
       </View>
     </ScrollView>
   );
@@ -180,5 +193,11 @@ const styles = StyleSheet.create({
   linkText: {
     color: theme.colors.primary,
     fontWeight: theme.typography.fontWeight.bold,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

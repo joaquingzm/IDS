@@ -66,10 +66,12 @@ function MainTabs() {
   const [estadoCarga, setEstadoCarga] = useState("");
   const navigation = useNavigation();
   const handleCameraPress = async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     console.log("Abrir cámara...");
     const uri = await openCameraAndTakePhoto();
     setEstadoCarga("Subiendo imagen ...");
     setLoading(true);
+    await sleep(1500);
     if (!uri) {
       console.log("No se obtuvo URI de la cámara.");
       setLoading(false);

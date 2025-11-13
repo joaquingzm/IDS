@@ -10,12 +10,14 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Modal,
+  ActivityIndicator,
 } from "react-native";
 import { AuthContext } from "../context/AuthContext";
 import { theme } from "../styles/theme";
 import Logo from "../assets/LogoRappiFarma.png";
 import useNav from "../hooks/UseNavigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, fetchSignInMethodsForEmail  } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { COLECCION_USUARIOS } from "../dbConfig";
@@ -36,10 +38,7 @@ export default function LoginScreen({ navigation }) {
   async function handleLogin() {
     
     if (!email || !password) {
-     showAlert("error_red", {
-        title: "Campos incompletos",
-        message: "Completá email y contraseña",
-      });
+      showAlert("login_error", { message: "Campos vacios" });
       return;
     }
 
@@ -84,11 +83,12 @@ export default function LoginScreen({ navigation }) {
       } catch (err) {
         console.warn("AuthContext.login falló:", err);
       }
-
+      
+      showAlert("login_success", { message: "Inicio de sesión exitoso." });
       navigation.replace("MainAppTabs");
     } catch (error) {
-      console.log("Error al iniciar sesión:", error?.message ?? error);
-       showAlert("error_red", { message: "Email o contraseña incorrectos" });
+      console.log("Código de error:", error.code);
+      showAlert("login_error", { message: "Credenciales inválidas. Verifique sus datos e intente nuevamente." });
     } finally {
       setLoading(false);
     }
@@ -140,6 +140,17 @@ export default function LoginScreen({ navigation }) {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+      <Modal
+              visible={loading}
+              transparent={true}
+              animationType="fade"
+              statusBarTranslucent={true}
+            >
+              <View style={styles.overlay}>
+                {/* 🔹 Spinner de carga */}
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+              </View>
+            </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -222,5 +233,11 @@ const styles = StyleSheet.create({
   registerHighlight: {
     color: theme.colors.primary,
     fontWeight: theme.typography.fontWeight.medium,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

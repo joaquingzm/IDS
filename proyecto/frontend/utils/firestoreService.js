@@ -45,6 +45,7 @@ export async function crearUsuario(userData, uid) {
         [CAMPOS_USUARIO.NOMBRE]: userData.nombre || "",
         [CAMPOS_USUARIO.APELLIDO]: userData.apellido || "",
         [CAMPOS_USUARIO.ROL]: userData.rol || "user",
+        [CAMPOS_USUARIO.OBRASOCIAL_NUM]: userData.obraSocialNum || "",
         [CAMPOS_USUARIO.OBRASOCIAL]: userData.obraSocial || "",
         [CAMPOS_USUARIO.DNI]: userData.dni || "",
         [CAMPOS_USUARIO.DIRECCION]: userData.direccion || "",
@@ -83,6 +84,33 @@ export async function deleteUsuario(uid) {
     const ref = doc(db, COLECCION_USUARIOS, uid);
     await deleteDoc(ref);
 }
+
+export const checkUsuarioExistente = async (email, dni, obraSocial, obraSocialNum) => {
+  const colRef = collection(db, COLECCION_USUARIOS);
+
+  // Consultas por separado
+  const qEmail = query(colRef, where(CAMPOS_USUARIO.EMAIL, "==", email));
+  const qDni = query(colRef, where(CAMPOS_USUARIO.DNI, "==", dni));
+
+  // Consulta combinada para obra social + número
+  const qObra = query(
+    colRef,
+    where(CAMPOS_USUARIO.OBRASOCIAL, "==", obraSocial),
+    where(CAMPOS_USUARIO.OBRASOCIAL_NUM, "==", obraSocialNum)
+  );
+
+  const [snapEmail, snapDni, snapObra] = await Promise.all([
+    getDocs(qEmail),
+    getDocs(qDni),
+    getDocs(qObra),
+  ]);
+
+  return {
+    emailExistente: !snapEmail.empty,
+    dniExistente: !snapDni.empty,
+    obraExistente: !snapObra.empty,
+  };
+};
 
 /* -----------------------------
    FARMACIAS

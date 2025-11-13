@@ -9,7 +9,9 @@ import {
   Switch,
   TextInput,
   Alert,
-  SafeAreaView
+  SafeAreaView,
+  Modal,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
@@ -18,20 +20,22 @@ import { signOut } from 'firebase/auth';
 import { AuthContext } from '../context/AuthContext';
 import { CAMPOS_USUARIO } from '../dbConfig';
 import firestoreService from '../utils/firestoreService'; // ruta según tu proyecto
+import { useAlert } from "../context/AlertContext";
 
 export default function ProfileScreen({ navigation }) {
+  const { showAlert } = useAlert();
   const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
   const [dontSaveCredentials, setDontSaveCredentials] = useState(false);
 
   const { user } = useContext(AuthContext); // user = { uid, email, profile } si lo guardaste en Login
   const [profile, setProfile] = useState(user?.profile ?? null);
-  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // si no hay profile en el contexto, intentar obtenerlo desde Firestore
     async function fetchProfileIfMissing() {
       if (!profile && auth.currentUser) {
-        setLoadingProfile(true);
+        setLoading(true);
         try {
           if (typeof firestoreService.getUsuarioByUid === 'function') {
             const p = await firestoreService.getUsuarioByUid(auth.currentUser.uid);
@@ -40,7 +44,7 @@ export default function ProfileScreen({ navigation }) {
         } catch (err) {
           console.warn('No se pudo obtener perfil desde Firestore:', err);
         } finally {
-          setLoadingProfile(false);
+          setLoading(false);
         }
       }
     }
@@ -51,16 +55,24 @@ export default function ProfileScreen({ navigation }) {
     Alert.alert("Información", message);
   };
 
-  const handleLogout = () => {
-    signOut(auth)
-      .then(() => {
-        navigation.replace('Login');
-      })
-      .catch((error) => {
-        console.error("Error al cerrar sesión: ", error);
-        Alert.alert("Error", "No se pudo cerrar la sesión.");
-      });
-  };
+  const handleLogout = async () => {
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  try {
+    await signOut(auth);
+
+    showAlert("signout_success");
+    setLoading(true);
+
+    await sleep(200);
+
+    setLoading(false);
+    navigation.replace("Login");
+  } catch (error) {
+    console.error("Error al cerrar sesión: ", error);
+    showAlert("signout_error");
+  }
+};
 
   // helpers para leer campos con fallback (soportando distintas estructuras)
   const getField = (keyConst, altKey) => {
@@ -194,6 +206,17 @@ export default function ProfileScreen({ navigation }) {
         </TouchableOpacity>
 
       </ScrollView>
+      <Modal
+                            visible={loading}
+                            transparent={true}
+                            animationType="fade"
+                            statusBarTranslucent={true}
+                          >
+                            <View style={styles.overlay}>
+                              {/* 🔹 Spinner de carga */}
+                              <ActivityIndicator size="large" color={theme.colors.primary} />
+                            </View>
+                          </Modal>
     </SafeAreaView>
   );
 }
@@ -317,5 +340,11 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: theme.spacing.sm,
     color: '#1e40af',
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

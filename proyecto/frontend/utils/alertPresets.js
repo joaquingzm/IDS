@@ -29,6 +29,49 @@ login_success: {
   message: "Sesión iniciada correctamente.",
 },
 
+registro_error: {
+  type: "toast",
+  preset: "error",
+  title: "Error de registro de usuario.",
+  message: "{{message}}",
+},
+
+registro_success: {
+  type: "toast",
+  preset: "done",
+  title: "Bienvenido {{nombre}} 👋",
+  message: "Registro exitoso.",
+},
+
+signout_error: {
+  type: "toast",
+  preset: "error",
+  title: "Error cerrando sesion.",
+  message: "{{message}}",
+},
+
+signout_success: {
+  type: "toast",
+  preset: "done",
+  title: "Hasta pronto {{nombre}} 👋",
+  message: "Sesión cerrada correctamente.",
+},
+
+campo_invalido: {
+    type: "toast",
+    preset: "error",
+    title: "Datos inválidos ",
+    message: "{{message}}",
+},
+
+  campos_incompletos: {
+  type: "toast",
+  preset: "error",
+  title: "Campos incompletos ",
+  message: "Por favor, completá todos los campos antes de continuar.",
+},
+
+
   // Podemos hacer alertas con botones de esta manera
   confirmar_eliminar_pedido: {
     type: "alert",
