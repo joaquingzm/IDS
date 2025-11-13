@@ -12,7 +12,8 @@ export default function OfertsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let unsubscribe = null;
+    let unsubActivos = null;
+    let unsubEntrantes = null;
 
     const subscribeToPedidos = async () => {
       try {
@@ -23,24 +24,23 @@ export default function OfertsScreen({ navigation }) {
           return;
         }
 
-        // 🔥 Escuchamos solo los pedidos activos
-        unsubscribe = listenPedidosPorEstado(ESTADOS_PEDIDO.ACTIVO, async (pedidosActivos) => {
+        const handlePedidos = async (pedidos, tipo) => {
+
+          const pedidosUser = pedidos.filter(
+            (p) => p[CAMPOS_PEDIDO.USER_ID] === currentUserId
+          );
+
+          if (pedidosUser.length === 0) return;
+
+          // Elegir el primero
+          const pedido = pedidosUser[0];
+          if (!pedido?.id) {
+            return;
+          }
+
           try {
-            // Filtramos los pedidos del usuario actual
-            const pedidosUser = pedidosActivos.filter(
-              (p) => p[CAMPOS_PEDIDO.USER_ID] === currentUserId
-            );
-
-            if (pedidosUser.length === 0) {
-              setPedidoActual(null);
-              setLoading(false);
-              return;
-            }
-
-            const pedido = pedidosUser[0];
-
-            // Enriquecer el pedido
             const ofertas = await firestoreService.listOfertasForPedido(pedido.id);
+
             const ofertaSeleccionada = ofertas.find(
               (of) => of[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.ACEPTADA
             );
@@ -52,13 +52,19 @@ export default function OfertsScreen({ navigation }) {
 
             setPedidoActual({ pedido, farmacia, ofertaSeleccionada });
           } catch (err) {
-            console.error("Error procesando pedidos activos:", err);
           } finally {
             setLoading(false);
           }
-        });
+        };
+
+        // 🔥 Escucha en tiempo real para ACTIVO y ENTRANTE
+        unsubActivos = listenPedidosPorEstado(ESTADOS_PEDIDO.ACTIVO, (pedidos) =>
+          handlePedidos(pedidos, "ACTIVO")
+        );
+        unsubEntrantes = listenPedidosPorEstado(ESTADOS_PEDIDO.ENTRANTE, (pedidos) =>
+          handlePedidos(pedidos, "ENTRANTE")
+        );
       } catch (error) {
-        console.error("Error al escuchar pedidos:", error);
         Alert.alert("Error", "No se pudo cargar los pedidos en tiempo real.");
         setLoading(false);
       }
@@ -67,7 +73,8 @@ export default function OfertsScreen({ navigation }) {
     subscribeToPedidos();
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      if (unsubActivos) unsubActivos();
+      if (unsubEntrantes) unsubEntrantes();
     };
   }, []);
 
@@ -96,7 +103,7 @@ export default function OfertsScreen({ navigation }) {
             farmacia={pedidoActual.farmacia}
           />
         ) : (
-          <Text style={styles.noPedidoText}>No tenés pedidos activos.</Text>
+          <Text style={styles.noPedidoText}>No tenés pedidos activos o entrantes.</Text>
         )}
 
         <View style={{ height: 20 }} />

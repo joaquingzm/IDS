@@ -1,9 +1,9 @@
 import React ,{ useState } from "react";
 import { View, Text, StyleSheet, Image, Modal, Pressable } from "react-native";
 import { theme } from "../styles/theme";
-import { CAMPOS_PEDIDO } from "../dbConfig";
+import { CAMPOS_OFERTA, CAMPOS_PEDIDO } from "../dbConfig";
 
-export default function CardPedidoPendiente({ pedido }) {
+export default function CardPedidoPendiente({ pedido, oferta }) {
   const [modalVisible, setModalVisible] = useState(false);
   const nombre = pedido[CAMPOS_PEDIDO.NOMBRE_USUARIO] || "No especificado";
   const apellido = pedido[CAMPOS_PEDIDO.APELLIDO_USUARIO] || "No especificado";
@@ -11,8 +11,8 @@ export default function CardPedidoPendiente({ pedido }) {
   const obraSocial = pedido[CAMPOS_PEDIDO.OBRASOCIAL] || "No especificado";
   const fechaPedido = pedido[CAMPOS_PEDIDO.FECHA_PEDIDO]?.toDate?.() || null;
   const imagen = pedido[CAMPOS_PEDIDO.IMAGEN];
-  const monto = "No especificado"; //Hay que traerse la oferta;
-  const medicamentos = Object.values(pedido[CAMPOS_PEDIDO.OCR]).join(" , ") || "No especificado";
+  const monto = oferta[CAMPOS_OFERTA.MONTO]; //Hay que traerse la oferta;
+  const medicamentos = oferta[CAMPOS_OFERTA.MEDICAMENTO] || "No especificado";
 
   return (
     <View style={styles.card}>

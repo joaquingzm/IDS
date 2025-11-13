@@ -144,7 +144,7 @@ export default function CardPedidoEntrante({ pedido , farmacia , tiempoEspera })
               style={styles.textInput}
               value={medicamentos}
               onChangeText={setMedicamentos}
-              placeholder="Ingresar medicamentos recetados"
+              placeholder={"Sugerencia " + Object.values(textOCR).join(", ")}
               multiline
               numberOfLines={3}
             />

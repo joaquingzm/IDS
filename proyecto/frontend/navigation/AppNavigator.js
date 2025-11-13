@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { TouchableOpacity, View, StyleSheet, Image, Alert, Platform } from 'react-native';
+import { TouchableOpacity, View, StyleSheet, Image, Alert, Platform, Modal, ActivityIndicator, Text } from 'react-native';
 import { openCameraAndTakePhoto } from '../utils/cameraUtils';
 import { theme } from '../styles/theme';
 import { COLECCION_PEDIDO_FARMACIA, CAMPOS_PEDIDO_FARMACIA } from "../dbConfig";
@@ -61,12 +61,17 @@ function CustomTabBarButton({ children, onPress }) {
 
 function MainTabs() {
   const [photoUri, setPhotoUri] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [estadoCarga, setEstadoCarga] = useState("");
   const navigation = useNavigation();
   const handleCameraPress = async () => {
     console.log("Abrir cámara...");
     const uri = await openCameraAndTakePhoto();
+    setEstadoCarga("Subiendo imagen ...");
+    setLoading(true);
     if (!uri) {
       console.log("No se obtuvo URI de la cámara.");
+      setLoading(false);
       return;
     }
 
@@ -88,12 +93,13 @@ function MainTabs() {
       const resp = await fetch(uri);
       if (!resp.ok) {
         const txt = await resp.text().catch(() => "");
+        setLoading(false);
         throw new Error(`No se pudo leer la imagen localmente. status=${resp.status} body=${txt}`);
       }
       const blobOCR = await resp.blob();
       formDataOCR.append("file", blobOCR, `photo_${Date.now()}.jpg`);
 
-
+      setEstadoCarga("Procesando receta ...");
       const OCR_URL = "http://10.0.2.15:8000/ocr";
       const ocrRes = await fetch(OCR_URL, {
         method: "POST",
@@ -106,6 +112,7 @@ function MainTabs() {
         const body = await ocrRes.text().catch(() => null);
         console.error("OCR backend error:", ocrRes.status, body);
         Alert.alert("Error", "El servidor OCR devolvió un error: " + (body || ocrRes.status));
+        setLoading(false);
         return;
       }
 
@@ -117,11 +124,12 @@ function MainTabs() {
       console.log("Subiendo imagen a Cloudinary...");
       const imageUrl = await uploadImageToCloudinary(uri); // usa la función mejorada
       console.log("Imagen subida con éxito:", imageUrl);
-
+      setEstadoCarga("Creando pedido ...");
       // 👇 3) Crear pedido en Firestore
       const currentUser = auth.currentUser;
       if (!currentUser) {
         Alert.alert("Error", "Usuario no autenticado");
+        setLoading(false);
         return;
       }
 
@@ -129,6 +137,7 @@ function MainTabs() {
       const usuario = await getUsuarioByUid(currentUser.uid);
       if (!usuario) {
         Alert.alert("Error", "No se pudo obtener información del usuario");
+        setLoading(false);
         return;
       }
 
@@ -162,10 +171,12 @@ function MainTabs() {
           [{ text: "OK", onPress: () => navigation.navigate("OfertsPending") }]
         );
       }
+      setLoading(false);
 
     } catch (error) {
       console.error("Error en handleCameraPress:", error);
       Alert.alert("Error", "No se pudo procesar la imagen: " + (error.message || error));
+      setLoading(false);
     }
 
   };
@@ -219,6 +230,20 @@ function MainTabs() {
         style={styles.floatingThumbnail}
       />
     )}
+    <Modal
+        visible={loading}
+        transparent={true}
+        animationType="fade"
+        statusBarTranslucent={true}
+      >
+        <View style={styles.overlay}>
+          {/* 🔹 Mensaje arriba del spinner */}
+          <Text style={styles.mensaje}>{estadoCarga}</Text>
+
+          {/* 🔹 Spinner de carga */}
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      </Modal>
   </View>);
 }
 
@@ -285,5 +310,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: 'relative', // Necesario para que absolute funcione
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  mensaje: {
+    color: theme.colors.primary,
+    fontSize: 18,
+    marginBottom: 20, // 🔹 separación entre el texto y el spinner
+    textAlign: "center",
   },
 });
