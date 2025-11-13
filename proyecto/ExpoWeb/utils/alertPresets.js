@@ -51,5 +51,32 @@ login_success: {
   title: "Campos incompletos ",
   message: "Por favor, completá todos los campos antes de continuar.",
 },
+registro_error: {
+  type: "toast",
+  preset: "error",
+  title: "Error de registro de usuario.",
+  message: "{{message}}",
+},
+
+registro_success: {
+  type: "toast",
+  preset: "done",
+  title: "Bienvenido {{nombre}} 👋",
+  message: "Registro exitoso.",
+},
+
+signout_error: {
+  type: "toast",
+  preset: "error",
+  title: "Error cerrando sesion.",
+  message: "{{message}}",
+},
+
+signout_success: {
+  type: "toast",
+  preset: "done",
+  title: "Hasta pronto {{nombre}} 👋",
+  message: "Sesión cerrada correctamente.",
+},
 
 };

@@ -1,5 +1,5 @@
 import React, { useState, useContext } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet,Modal, ActivityIndicator } from "react-native";
 import { AuthContext } from "../context/AuthContext.js";
 import { theme } from "../styles/theme";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
@@ -17,26 +17,33 @@ export default function RegisterScreen({navigation}) {
   const [direccion, setDireccion] = useState("");
   const [telefono, setTelefono] = useState("");
   const { goLogin } = useNav();
-   const { showAlert } = useAlert();
+  const { showAlert } = useAlert();
+  const [loading, setLoading]= useState(false);
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   
   const handleRegister = async () => {
   try {
-    
+      setLoading(true);
+      await sleep(200);
        if (!nombre.trim() || !direccion.trim() || !email.trim() || !password.trim() || !telefono.trim()) {
-      showAlert("campos_incompletos");
+        setLoading(false);
+        showAlert("campos_incompletos");
       return;
     }
     if (password.length < 6) {
+      setLoading(false);
       showAlert("campo_invalido", { message: "La contraseña debe tener al menos 6 caracteres." });
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      setLoading(false);
       showAlert("campo_invalido", { message: "El correo electrónico no tiene un formato válido." });
       return;
     }
     const telefonoRegex = /^[0-9]+$/;
     if (!telefonoRegex.test(telefono)) {
+      setLoading(false);
       showAlert("campo_invalido", { message: "El teléfono debe contener solo números." });
       return;
     }
@@ -47,15 +54,18 @@ export default function RegisterScreen({navigation}) {
       await checkFarmaciaExistente({ email, direccion, telefono });
 
     if (emailExistente) {
-      showAlert("error", { message: "Ya existe una farmacia registrada con ese correo electrónico." });
+      setLoading(false);
+      showAlert("registro_error", { message: "El mail ya está registrado." });
       return;
     }
     if (direccionExistente) {
-      showAlert("error", { message: "Ya existe una farmacia registrada en esa dirección." });
+      setLoading(false);
+      showAlert("registro_error", { message: "El domicilio comercial ya está registrado." });
       return;
     }
     if (telefonoExistente) {
-      showAlert("error", { message: "Ya existe una farmacia registrada con ese teléfono." });
+      setLoading(false);
+      showAlert("registro_error", { message: "El número de teléfono ya está registrado." });
       return;
     }
 
@@ -71,11 +81,12 @@ export default function RegisterScreen({navigation}) {
       { email, nombre, direccion, rol: "farmacia", telefono },
       user.uid
     );
-
+    setLoading(false);
     console.log("Usuario registrado:", user.uid);
-    showAlert("success", { message: "Registro exitoso" });
+    showAlert("registro_success");
     goLogin();
   } catch (error) {
+    setLoading(false);
     showAlert("error", { message: "Error al registrar el usuario: " + error.message });
     console.log("Error al registrar:", error);
   }
@@ -144,6 +155,17 @@ export default function RegisterScreen({navigation}) {
       >
         ¿Ya tenés cuenta? Iniciá sesión
       </Text>
+      <Modal
+          visible={loading}
+          transparent={true}
+          animationType="fade"
+          statusBarTranslucent={true}
+          >
+          <View style={styles.overlay}>
+          {/* 🔹 Spinner de carga */}
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+          </View>
+          </Modal>
     </View>
     <View>
     </View>
@@ -223,5 +245,11 @@ const styles = StyleSheet.create({
   shadowRadius: 5,
   shadowOffset: { width: 0, height: 2 },
   elevation: 3,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

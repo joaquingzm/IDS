@@ -1,13 +1,13 @@
 import React, { useState, useContext } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image,Modal, ActivityIndicator } from "react-native";
 import { AuthContext } from "../context/AuthContext.js";
 import { theme } from "../styles/theme";
 import Logo from "../assets/LogoRappiFarma.png";
 import useNav from "../hooks/UseNavigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "../firebase";
-import { COLECCION_USUARIOS, COLECCION_FARMACIAS } from "../dbConfig";
-import { doc, getDoc } from "firebase/firestore";
+import { auth} from "../firebase";
+import { useAlert } from "../context/AlertContext";
+import firestoreService, { getFarmaciaById } from "../utils/firestoreService";
 
 
 export default function LoginScreen({navigation}) {
@@ -15,28 +15,63 @@ export default function LoginScreen({navigation}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { goRegister } = useNav();
-  const { goMain } = useNav();
+  const { showAlert } = useAlert();
+  const [loading, setLoading]= useState(false);
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   async function handleLogin() {
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-
-    const farmaciaRef = doc(db, COLECCION_FARMACIAS, user.uid);
-    const farmaciaSnap = await getDoc(farmaciaRef);
-
-    if (farmaciaSnap.exists()) {
-      navigation.replace("Main");
+    setLoading(true);
+    if (!email || !password) {
+     setLoading(false);
+      showAlert("campos_incompletos");
       return;
     }
 
-    await auth.signOut();
-    alert("Email o contraseña incorrectos");
+    
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      const uid = user.uid;
 
-  } catch (error) {
-    alert("Email o contraseña incorrectos");
-  }
+      // Usamos el servicio centralizado para obtener el documento del usuario
+      let usuario = null;
+      try {
+        if (typeof firestoreService.getFarmaciaById === "function") {
+          usuario = await firestoreService.getFarmaciaById(uid);
+        }
+      } catch (err) {
+        setLoading(false);
+        console.warn("Error obteniendo usuario desde firestoreService:", err);
+        showAlert("registro_error",{ message: "Error al obtener usuario" });
+      }
 
+      if (!usuario) {
+        // No existe el perfil en la colección de usuarios -> desloguear y avisar
+        await auth.signOut();
+        showAlert("registro_error",{ message: "Credenciales inválidas. Verifique sus datos e intente nuevamente" });
+        setLoading(false);
+        return;
+      }
+
+      // Guardar en contexto (si existe)
+      try {
+        if (typeof login === "function") {
+          login({ uid, email: user.email, profile: usuario });
+        }
+      } catch (err) {
+        setLoading(false);
+        console.warn("AuthContext.login falló:", err);
+      }
+      setLoading(false);
+      showAlert("registro_success",{ message: "Inicio de sesión exitoso" });
+      navigation.replace("Main");
+    } catch (error) {
+      console.log("Error al iniciar sesión:", error?.message ?? error);
+      setLoading(false); 
+      showAlert("registro_error",{ message: "Credenciales inválidas. Verifique sus datos e intente nuevamente" });
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -74,6 +109,17 @@ export default function LoginScreen({navigation}) {
         <Text style={styles.registerText}>Crear cuenta</Text>
       </TouchableOpacity>
     </View>
+    <Modal
+              visible={loading}
+              transparent={true}
+              animationType="fade"
+              statusBarTranslucent={true}
+              >
+              <View style={styles.overlay}>
+              {/* 🔹 Spinner de carga */}
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+              </View>
+      </Modal>
   </View>
   
   );
@@ -145,5 +191,11 @@ const styles = StyleSheet.create({
     padding: theme.spacing.xl,
     shadows:theme.shadows.sm,
     elevation: 3, 
+  },
+   overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

@@ -1,33 +1,37 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, Switch, TextInput,Alert,SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView,TextInput,SafeAreaView, TouchableOpacity,Modal, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme'; 
 import { auth } from '../firebase'; 
 import { signOut } from 'firebase/auth'; 
 import { useNavigation } from 'expo-router';
+import { useAlert } from "../context/AlertContext";
 
 
 export default function ProfileScreen({}) {
   const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
   const [dontSaveCredentials, setDontSaveCredentials] = useState(false);
   const navigation = useNavigation();
+  const { showAlert } = useAlert();
+   const [loading, setLoading]= useState(false);
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  const showToast = (message) => {
-    Alert.alert("Información", message);
-  };
-
- 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    setLoading(true);
+    await sleep(300);
     signOut(auth)
       .then(() => {
+        setLoading(false);
+        showAlert("signout_success")
         navigation.reset({
       index: 0,
       routes: [{ name: 'Login' }],
     }); 
       })
       .catch((error) => {
+        setLoading(false);
         console.error("Error al cerrar sesión: ", error);
-        Alert.alert("Error", "No se pudo cerrar la sesión.");
+        showAlert("singout_error")
       });
   };
 
@@ -101,6 +105,17 @@ export default function ProfileScreen({}) {
         <Text style={styles.outlineButtonText}>Cambiar contraseña</Text>
       </Pressable>
 
+             <Modal
+          visible={loading}
+          transparent={true}
+          animationType="fade"
+          statusBarTranslucent={true}
+          >
+          <View style={styles.overlay}>
+          {/* 🔹 Spinner de carga */}
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+          </View>
+          </Modal>
       
                <TouchableOpacity 
           style={[styles.outlineButton, { borderColor: theme.colors.destructive, marginTop: theme.spacing.md }]}
@@ -109,6 +124,7 @@ export default function ProfileScreen({}) {
           <Text style={[styles.outlineButtonText, { color: theme.colors.destructive }]}>
             Cerrar sesión
           </Text>
+          
         </TouchableOpacity>   
       </ScrollView>
     </SafeAreaView>
@@ -194,6 +210,12 @@ const styles = StyleSheet.create({
   },
   destructiveText: {
     color: theme.colors.destructive,
+  },
+   overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 

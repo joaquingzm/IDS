@@ -202,7 +202,7 @@ export async function listPedidosByStateAndPharmacy(state, farmaciaId) {
     );
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-}
+}               
 
 
 export async function updatePedido(pedidoId, patches) {
