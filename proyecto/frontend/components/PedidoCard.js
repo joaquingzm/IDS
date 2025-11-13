@@ -48,11 +48,7 @@ return (
   <View style={styles.card}>
     <View style={styles.infoContainer}>
       <Text style={styles.title}>Estado: {estado}</Text>
-      <Text style={styles.text}>Farmacia: {nombreFarmacia}</Text>
-      <Text style={styles.text}>Medicamentos: {medicamento}</Text>
-      <Text style={styles.text}>Fecha del pedido: {fechaPedido}</Text>
-    </View>
-    {/* Imagen + texto superior */}
+      {/* Imagen + texto superior */}
           <View style={styles.imageRow}>
             <TouchableOpacity onPress={() => setModalVisible(true)}>
               {imagen ? (
@@ -64,6 +60,10 @@ return (
               )}
             </TouchableOpacity>
           </View>
+      <Text style={styles.text}>Farmacia: {nombreFarmacia}</Text>
+      <Text style={styles.text}>Medicamentos: {medicamento}</Text>
+      <Text style={styles.text}>Fecha del pedido: {fechaPedido}</Text>
+    </View>
     {/* Modal con imagen ampliada */}
           <Modal
             visible={modalVisible}
@@ -110,5 +110,38 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.base,
     color: theme.colors.foreground,
     marginBottom: theme.spacing.xs,
+  },
+  imageRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  image: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  placeholderImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    backgroundColor: "#ddd",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  placeholderText: {
+    color: "#666",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  fullImage: {
+    width: "90%",
+    height: "70%",
+    borderRadius: 12,
   },
 });

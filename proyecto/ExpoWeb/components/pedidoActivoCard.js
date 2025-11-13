@@ -10,12 +10,22 @@ import {
 import { theme } from "../styles/theme";
 import { db } from "../firebase";
 import { doc, updateDoc } from "firebase/firestore";
-import { COLECCION_PEDIDO, CAMPOS_PEDIDO, ESTADOS_PEDIDO } from "../dbConfig";
+import { COLECCION_PEDIDO, CAMPOS_PEDIDO, ESTADOS_PEDIDO, CAMPOS_OFERTA } from "../dbConfig";
 
-export default function PedidoActivaCard({ pedidoData, onPedidoEliminado }) {
+export default function PedidoActivaCard({ pedidoData, oferta, onPedidoEliminado }) {
   const [pedido, setPedido] = useState(pedidoData);
   const [expandido, setExpandido] = useState(false);
   const [procesando, setProcesando] = useState(false);
+
+  const safeClone = (obj) => {
+  try {
+    // clon simple y seguro para debugging (no conservará Timestamp como Date)
+    return obj ? JSON.parse(JSON.stringify(obj)) : {};
+  } catch {
+    // fallback si no se puede stringify (objetos con funciones)
+    return { ...(obj || {}) };
+  }
+};
 
   const avanzarEstado = () => {
     const orden = ["Pendiente", "En camino", "Entregado", "Finalizado"];
@@ -32,12 +42,17 @@ export default function PedidoActivaCard({ pedidoData, onPedidoEliminado }) {
   };
 
   const moverAHistorial = async () => {
-    if (procesando) return;
+  if (procesando) return;
 
-    const confirmar =
-      Platform.OS === "web"
-        ? window.confirm("¿Marcar el pedido como finalizado?")
-        : await new Promise((resolve) =>
+  if (!pedido && !pedidoData) {
+    console.warn("moverAHistorial: no hay pedido cargado");
+    return;
+  }
+
+  const confirmar =
+    Platform.OS === "web"
+      ? window.confirm("¿Marcar el pedido como finalizado?")
+      : await new Promise((resolve) =>
           Alert.alert(
             "Confirmar",
             "¿Marcar el pedido como finalizado?",
@@ -49,39 +64,47 @@ export default function PedidoActivaCard({ pedidoData, onPedidoEliminado }) {
           )
         );
 
-    if (!confirmar) return;
+  if (!confirmar) return;
 
-    setProcesando(true);
-    try {
-      const pedidoRef = doc(db, COLECCION_PEDIDO, pedido.id);
-      await updateDoc(pedidoRef, {
-        [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.REALIZADO,
-      });
+  setProcesando(true);
+  try {
+    const base = pedido ?? pedidoData ?? {};
+    // clonamos para evitar sorpresas con prototipos o referencias
+    const newPedido = { ...safeClone(base), estado: "Finalizado" };
 
-      setPedido((prev) => ({ ...prev, estado: "Finalizado" }));
+    console.log("moverAHistorial -> newPedido:", newPedido);
 
-      if (onPedidoEliminado) onPedidoEliminado(pedido.id);
+    const pedidoRef = doc(db, COLECCION_PEDIDO, newPedido.id);
+    await updateDoc(pedidoRef, {
+      [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.REALIZADO,
+    });
 
-      if (Platform.OS === "web") {
-        window.alert("Pedido finalizado correctamente");
-      } else {
-        Alert.alert("Éxito", "Pedido finalizado correctamente");
-      }
-    } catch (error) {
-      console.error("Error al finalizar pedido:", error);
-      Alert.alert("Error", "No se pudo marcar como finalizado.");
-    } finally {
-      setProcesando(false);
-    }
-  };
+    setPedido(newPedido);
+
+    if (onPedidoEliminado) onPedidoEliminado(newPedido.id);
+
+    if (Platform.OS === "web") window.alert("Pedido finalizado correctamente");
+    else Alert.alert("Éxito", "Pedido finalizado correctamente");
+  } catch (error) {
+    console.error("Error al finalizar pedido:", error);
+    Alert.alert("Error", "No se pudo marcar como finalizado.");
+  } finally {
+    setProcesando(false);
+  }
+};
 
   const cancelarPedido = async () => {
-    if (procesando) return;
+  if (procesando) return;
 
-    const confirmar =
-      Platform.OS === "web"
-        ? window.confirm("¿Rechazar este pedido?")
-        : await new Promise((resolve) =>
+  if (!pedido && !pedidoData) {
+    console.warn("cancelarPedido: no hay pedido cargado");
+    return;
+  }
+
+  const confirmar =
+    Platform.OS === "web"
+      ? window.confirm("¿Rechazar este pedido?")
+      : await new Promise((resolve) =>
           Alert.alert(
             "Confirmar rechazo",
             "¿Estás seguro de rechazar este pedido?",
@@ -93,39 +116,41 @@ export default function PedidoActivaCard({ pedidoData, onPedidoEliminado }) {
           )
         );
 
-    if (!confirmar) return;
+  if (!confirmar) return;
 
-    setProcesando(true);
-    try {
-      const pedidoRef = doc(db, COLECCION_PEDIDO, pedido.id);
-      await updateDoc(pedidoRef, {
-        [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.RECHAZADO,
-      });
+  setProcesando(true);
+  try {
+    const base = pedido ?? pedidoData ?? {};
+    const newPedido = { ...safeClone(base), estado: "Rechazado" };
 
-      setPedido((prev) => ({ ...prev, estado: "Rechazado" }));
+    console.log("cancelarPedido -> newPedido:", newPedido);
 
-      if (onPedidoEliminado) onPedidoEliminado(pedido.id);
+    const pedidoRef = doc(db, COLECCION_PEDIDO, newPedido.id);
+    await updateDoc(pedidoRef, {
+      [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.RECHAZADO,
+    });
 
-      if (Platform.OS === "web") {
-        window.alert("Pedido rechazado correctamente");
-      } else {
-        Alert.alert("Pedido rechazado", "Se marcó como rechazado correctamente");
-      }
-    } catch (error) {
-      console.error("Error al rechazar pedido:", error);
-      Alert.alert("Error", "No se pudo rechazar el pedido.");
-    } finally {
-      setProcesando(false);
-    }
-  };
+    setPedido(newPedido);
 
-  const producto = pedido.Medicamentos || "Medicamentos no especificados";
-  const cliente =
-    `${pedido.nombreUsuario || ""} ${pedido.apellidoUsuario || ""}`.trim() ||
+    if (onPedidoEliminado) onPedidoEliminado(newPedido.id);
+
+    if (Platform.OS === "web") window.alert("Pedido rechazado correctamente");
+    else Alert.alert("Pedido rechazado", "Se marcó como rechazado correctamente");
+  } catch (error) {
+    console.error("Error al rechazar pedido:", error);
+    Alert.alert("Error", "No se pudo rechazar el pedido.");
+  } finally {
+    setProcesando(false);
+  }
+};
+
+    const producto = oferta[CAMPOS_OFERTA.MEDICAMENTO] || "Medicamentos no especificados";
+    const cliente =
+    `${pedido[CAMPOS_PEDIDO.NOMBRE_USUARIO] || ""} ${pedido[CAMPOS_PEDIDO.APELLIDO_USUARIO] || ""}`.trim() ||
     "Cliente no especificado";
-  const direccion = pedido.direccionUsuario || "Dirección no especificada";
-  const monto = pedido.Monto ? `$${pedido.Monto}` : "Monto no especificado";
-  const obraSocial = pedido.obraSocialUsuario || "Obra social no especificada";
+    const direccion = pedido[CAMPOS_PEDIDO.DIRECCION] || "Dirección no especificada";
+    const monto = oferta[CAMPOS_OFERTA.MONTO] ? `$${oferta[CAMPOS_OFERTA.MONTO]}` : "Monto no especificado";
+    const obraSocial = pedido[CAMPOS_PEDIDO.OBRASOCIAL] || "Obra social no especificada";
 
   const formatFecha = (f) => {
     try {

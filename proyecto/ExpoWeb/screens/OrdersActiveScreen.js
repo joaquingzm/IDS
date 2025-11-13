@@ -4,20 +4,54 @@ import { theme } from "../styles/theme";
 import PedidoActivaCard from "../components/pedidoActivoCard";
 import { listenPedidosPorEstado } from "../utils/firestoreService";
 import { ESTADOS_PEDIDO } from "../dbConfig";
+import { auth } from "../firebase";
+import { listOfertasForPedido, listenPedidosPorEstadoYFarmacia } from "../utils/firestoreService";
 
 export default function OrdersActiveScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const farmaciaId = auth.currentUser?.uid;
 
   useEffect(() => {
-    
-    const unsub = listenPedidosPorEstado(ESTADOS_PEDIDO.ACTIVO, (items) => {
-      setPedidos(items);
+    if (!farmaciaId) {
+      setPedidos([]);
       setLoading(false);
-    });
-
-    return () => unsub();
-  }, []);
+      return;
+    }
+  
+    const unsub = listenPedidosPorEstadoYFarmacia(
+      ESTADOS_PEDIDO.ACTIVO,
+      farmaciaId,
+      async (pedidosSnapshot) => {
+        try {
+          // Enriquecer cada pedido con su oferta asociada
+          const pedidosEnriquecidos = await Promise.all(
+            pedidosSnapshot.map(async (pedido) => {
+              try {
+                const ofertas = await listOfertasForPedido(pedido.id);
+                const ofertaAsociada = ofertas.find(
+                  (of) => of.farmaciaId === farmaciaId // o el campo correcto según tu modelo
+                );
+  
+                return { pedido, oferta: ofertaAsociada || null };
+              } catch (err) {
+                console.warn("Error enriqueciendo pedido:", pedido.id, err);
+                return { pedido, oferta: null };
+              }
+            })
+          );
+  
+          setPedidos(pedidosEnriquecidos);
+        } catch (error) {
+          console.error("Error procesando pedidos pendientes:", error);
+          Alert.alert("Error", "No se pudieron cargar los pedidos pendientes.");
+        } finally {
+          setLoading(false);
+        }
+      }
+    );
+        return () => unsub();
+      }, []);
 
  
   const handlePedidoEliminado = (pedidoId) => {
@@ -34,27 +68,25 @@ export default function OrdersActiveScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Pedidos Activos</Text>
+  <Text style={styles.title}>Pedidos Activos</Text>
 
-      {pedidos.length > 0 ? (
-        <FlatList
-          data={pedidos}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <PedidoActivaCard
-              pedidoData={item}
-              onPedidoEliminado={handlePedidoEliminado}
-            />
-          )}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContainer}
+  {pedidos.length > 0 ? (
+    <View style={styles.listContainer}>
+      {pedidos.map(({ pedido, oferta }) => (
+        <PedidoActivaCard
+          key={pedido.id}
+          pedidoData={pedido}
+          oferta={oferta}
+          onPedidoEliminado={handlePedidoEliminado} // 🔹 aquí se mantiene
         />
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.noPedidoText}>No hay pedidos activos</Text>
-        </View>
-      )}
+      ))}
     </View>
+  ) : (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.noPedidoText}>No hay pedidos activos</Text>
+    </View>
+  )}
+</View>
   );
 }
 
