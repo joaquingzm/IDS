@@ -2,7 +2,7 @@ import React, { useState, useContext } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { AuthContext } from "../context/AuthContext.js";
 import { theme } from "../styles/theme";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { COLECCION_FARMACIAS, CAMPOS_FARMACIA } from "../dbConfig";
 import useNav from "../hooks/UseNavigation";
@@ -21,8 +21,8 @@ export default function RegisterScreen({navigation}) {
   
   const handleRegister = async () => {
   try {
-    // Validaciones de campos
-    if (!nombre.trim() || !direccion.trim() || !email.trim() || !password.trim() || !telefono.trim()) {
+    
+       if (!nombre.trim() || !direccion.trim() || !email.trim() || !password.trim() || !telefono.trim()) {
       showAlert("campos_incompletos");
       return;
     }
@@ -40,9 +40,10 @@ export default function RegisterScreen({navigation}) {
       showAlert("campo_invalido", { message: "El teléfono debe contener solo números." });
       return;
     }
-
-    // Verifica duplicados en Firestore
-    const { emailExistente, direccionExistente, telefonoExistente } =
+    
+    
+    
+   const { emailExistente, direccionExistente, telefonoExistente } =
       await checkFarmaciaExistente({ email, direccion, telefono });
 
     if (emailExistente) {
@@ -58,13 +59,14 @@ export default function RegisterScreen({navigation}) {
       return;
     }
 
-    // Crear usuario en Auth
+    
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    await signInWithEmailAndPassword(auth, email, password); // 🔐 fuerza autenticación activa
+    const user = userCredential.user;
 
-    const user = auth.currentUser;
+    
+    await signInWithEmailAndPassword(auth, email, password);
 
-    // Crear farmacia en Firestore
+    
     await createFarmacia(
       { email, nombre, direccion, rol: "farmacia", telefono },
       user.uid
@@ -78,7 +80,6 @@ export default function RegisterScreen({navigation}) {
     console.log("Error al registrar:", error);
   }
 };
-
 
   return (
     <View style={styles.container}>
