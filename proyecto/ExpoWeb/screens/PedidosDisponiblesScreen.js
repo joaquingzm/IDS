@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, FlatList, ActivityIndicator, StyleSheet, Text } from "react-native";
 import { theme } from "../styles/theme";
-import CardPedidoEntrante from "../components/pedidoEntranteCard";
+import pedidoDisponibleCard from "../components/pedidoDisponibleCard";
 import { listenPedidosPorEstado } from "../utils/firestoreService";
 import {
   ESTADOS_PEDIDO,
@@ -10,7 +10,7 @@ import {
 import { auth } from "../firebase";
 import { getFarmaciaById } from "../utils/firestoreService";
 
-export default function OrdersPendingScreen() {
+export default function PedidosDisponiblesScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [farmacia, setFarmacia] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -89,14 +89,14 @@ export default function OrdersPendingScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Pedidos Entrantes</Text>
+      <Text style={styles.title}>Pedidos disponibles</Text>
 
       {pedidos.length > 0 ? (
         <FlatList
           data={pedidos}
           keyExtractor={(item) => item.id || item.docId || JSON.stringify(item)}
           renderItem={({ item }) => (
-            <CardPedidoEntrante
+            <pedidoDisponibleCard
               pedido={item}
               farmacia={
                 farmacia || {
@@ -113,7 +113,7 @@ export default function OrdersPendingScreen() {
         />
       ) : (
         <View style={styles.emptyContainer}>
-          <Text style={styles.noPedidosText}>No hay pedidos Entrantes</Text>
+          <Text style={styles.noPedidosText}>No hay pedidos disponibles</Text>
         </View>
       )}
     </View>

@@ -18,7 +18,7 @@ import {
 import { updatePedido , crearOferta } from "../utils/firestoreService";
 import { auth } from "../firebase";
 
-export default function CardPedidoEntrante({ pedido , farmacia , tiempoEspera }) {
+export default function pedidoDisponibleCard({ pedido , farmacia , tiempoEspera }) {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [medicamentos, setMedicamentos] = useState("");
   const [monto, setMonto] = useState("");

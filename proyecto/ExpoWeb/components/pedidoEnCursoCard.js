@@ -12,7 +12,7 @@ import { db } from "../firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { COLECCION_PEDIDO, CAMPOS_PEDIDO, ESTADOS_PEDIDO, CAMPOS_OFERTA } from "../dbConfig";
 
-export default function PedidoActivaCard({ pedidoData, oferta, onPedidoEliminado }) {
+export default function pedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminado }) {
   const [pedido, setPedido] = useState(pedidoData);
   const [expandido, setExpandido] = useState(false);
   const [procesando, setProcesando] = useState(false);

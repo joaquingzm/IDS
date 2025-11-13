@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { View, FlatList, ActivityIndicator, StyleSheet, Text, ScrollView } from "react-native";
 import { theme } from "../styles/theme";
-import CardPedidoPendiente from "../components/pedidoPendienteCard";
+import OfertaEnviadaCard from "../components/OfertaEnviadaCard";
 import { listOfertasForPedido, listenPedidosPorEstadoYFarmacia } from "../utils/firestoreService";
 import { ESTADOS_PEDIDO } from "../dbConfig";
 import { auth } from "../firebase";
 
-export default function OrdersPendingScreen() {
+export default function OfertasEnviadasScreen() {
   const [pedidos, setPedidos] = useState([]);
 const [loading, setLoading] = useState(true);
 const farmaciaId = auth.currentUser?.uid;
@@ -64,7 +64,7 @@ useEffect(() => {
 
   return (
  <View style={styles.container}>
-  <Text style={styles.title}>Pedidos Pendientes</Text>
+  <Text style={styles.title}>Ofertas Enviadas</Text>
 
   {pedidos.length > 0 ? (
     <ScrollView
@@ -72,7 +72,7 @@ useEffect(() => {
       contentContainerStyle={styles.listContainer}
     >
       {pedidos.map(({ pedido, oferta }) => (
-        <CardPedidoPendiente
+        <OfertaEnviadaCard
           key={pedido.id}
           pedido={pedido}
           oferta={oferta}
@@ -81,7 +81,7 @@ useEffect(() => {
     </ScrollView>
   ) : (
     <View style={styles.emptyContainer}>
-      <Text style={styles.noPedidosText}>No hay pedidos pendientes</Text>
+      <Text style={styles.noPedidosText}>No hay ofertas enviadas</Text>
     </View>
   )}
 </View>

@@ -8,10 +8,10 @@ export default function CustomSidebar({ activeTab, setActiveTab }) {
     <View style={styles.wrapper}>
       <View style={styles.container}>
                {[
-          { key: "Pedidos Entrantes", label: "Pedidos Entrantes" },
-          { key: "Pedidos Pendientes", label: "Pedidos Pendientes" },
-          { key: "Pedidos Activos", label: "Pedidos Activos" },
-          { key: "Historial de Pedidos", label: "Historial" },
+          { key: "Pedidos Disponibles", label: "Pedidos Disponibles" },
+          { key: "Ofertas Enviadas", label: "Ofertas Enviadas" },
+          { key: "Pedidos en curso", label: "Pedidos en curso" },
+          { key: "Historial de Pedidos", label: "Historial de Pedidos" },
           { key: "Perfil", label: "Perfil" },
         ].map((item) => (
           <TouchableOpacity
@@ -29,7 +29,7 @@ export default function CustomSidebar({ activeTab, setActiveTab }) {
           <View style={styles.statsCard}>
           <View style={styles.statsRow}>
             <Icon name="clock" size={26} color={theme.colors.destructiveForeground} />
-            <Text style={styles.statsTitle}>Pedidos Pendientes:</Text>
+            <Text style={styles.statsTitle}>Pedidos Disponibles:</Text>
           </View>
           <Text style={styles.statsValue}>5</Text>
         </View>

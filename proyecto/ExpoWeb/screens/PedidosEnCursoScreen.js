@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { View, FlatList, ActivityIndicator, StyleSheet, Text } from "react-native";
 import { theme } from "../styles/theme";
-import PedidoActivaCard from "../components/pedidoActivoCard";
+import pedidoEnCursoCard from "../components/pedidoEnCursoCard";
 import { listenPedidosPorEstado } from "../utils/firestoreService";
 import { ESTADOS_PEDIDO } from "../dbConfig";
 import { auth } from "../firebase";
 import { listOfertasForPedido, listenPedidosPorEstadoYFarmacia } from "../utils/firestoreService";
 
-export default function OrdersActiveScreen() {
+export default function PedidosEnCursoScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const farmaciaId = auth.currentUser?.uid;
@@ -68,12 +68,12 @@ export default function OrdersActiveScreen() {
 
   return (
     <View style={styles.container}>
-  <Text style={styles.title}>Pedidos Activos</Text>
+  <Text style={styles.title}>Pedidos en Curso</Text>
 
   {pedidos.length > 0 ? (
     <View style={styles.listContainer}>
       {pedidos.map(({ pedido, oferta }) => (
-        <PedidoActivaCard
+        <pedidoEnCursoCard
           key={pedido.id}
           pedidoData={pedido}
           oferta={oferta}
@@ -83,7 +83,7 @@ export default function OrdersActiveScreen() {
     </View>
   ) : (
     <View style={styles.emptyContainer}>
-      <Text style={styles.noPedidoText}>No hay pedidos activos</Text>
+      <Text style={styles.noPedidoText}>No hay pedidos en curso</Text>
     </View>
   )}
 </View>
