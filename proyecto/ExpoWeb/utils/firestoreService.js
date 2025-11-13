@@ -125,6 +125,27 @@ export async function deleteFarmacia(id) {
     await deleteDoc(ref);
 }
 
+export const checkFarmaciaExistente = async ({ email, direccion, telefono }) => {
+  const colRef = collection(db, COLECCION_FARMACIAS);
+
+  // consultar cada campo por separado
+  const qEmail = query(colRef, where("email", "==", email));
+  const qDireccion = query(colRef, where("direccion", "==", direccion));
+  const qTelefono = query(colRef, where("telefono", "==", telefono));
+
+  const [snapEmail, snapDireccion, snapTelefono] = await Promise.all([
+    getDocs(qEmail),
+    getDocs(qDireccion),
+    getDocs(qTelefono),
+  ]);
+
+  return {
+    emailExistente: !snapEmail.empty,
+    direccionExistente: !snapDireccion.empty,
+    telefonoExistente: !snapTelefono.empty,
+  };
+};
+
 /* -----------------------------
    PEDIDOS
    ----------------------------- */
@@ -362,6 +383,7 @@ const firestoreService = {
     getFarmaciaById,
     updateFarmacia,
     deleteFarmacia,
+    checkFarmaciaExistente,
 
     // pedidos
     crearPedido,

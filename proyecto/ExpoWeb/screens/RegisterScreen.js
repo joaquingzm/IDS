@@ -3,11 +3,12 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from "reac
 import { AuthContext } from "../context/AuthContext.js";
 import { theme } from "../styles/theme";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { COLECCION_FARMACIAS, CAMPOS_FARMACIA } from "../dbConfig";
 import useNav from "../hooks/UseNavigation";
 import { createFarmacia } from "../utils/firestoreService.js";
+import { useAlert } from "../context/AlertContext";
+import { checkFarmaciaExistente } from "../utils/firestoreService";
 
 export default function RegisterScreen({navigation}) {
   const [nombre, setNombre] = useState("");
@@ -16,28 +17,68 @@ export default function RegisterScreen({navigation}) {
   const [direccion, setDireccion] = useState("");
   const [telefono, setTelefono] = useState("");
   const { goLogin } = useNav();
+   const { showAlert } = useAlert();
   
-  const handleRegister = async() => {
-    try{
-        const UserCredential = await createUserWithEmailAndPassword(auth,email,password);
-        const user = UserCredential.user;
-        
-        await createFarmacia(
-          { email, nombre, direccion, rol: "farmacia", telefono},
-      user.uid 
-        )       
-     console.log("Usuario registrado:", user.uid);
-      alert("Registro exitoso");
-      goLogin();
-    } catch (error) {
-      if (error.code === "auth/email-already-in-use") {
-        alert("Este correo ya está registrado. Iniciá sesión o usá otro correo.");
-         } else {
-          alert("Error al registrar el usuario: " + error.message);
-            }
-        console.log("Error al registrar:", error);
+  const handleRegister = async () => {
+  try {
+    // Validaciones de campos
+    if (!nombre.trim() || !direccion.trim() || !email.trim() || !password.trim() || !telefono.trim()) {
+      showAlert("campos_incompletos");
+      return;
     }
-  };
+    if (password.length < 6) {
+      showAlert("campo_invalido", { message: "La contraseña debe tener al menos 6 caracteres." });
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showAlert("campo_invalido", { message: "El correo electrónico no tiene un formato válido." });
+      return;
+    }
+    const telefonoRegex = /^[0-9]+$/;
+    if (!telefonoRegex.test(telefono)) {
+      showAlert("campo_invalido", { message: "El teléfono debe contener solo números." });
+      return;
+    }
+
+    // Verifica duplicados en Firestore
+    const { emailExistente, direccionExistente, telefonoExistente } =
+      await checkFarmaciaExistente({ email, direccion, telefono });
+
+    if (emailExistente) {
+      showAlert("error", { message: "Ya existe una farmacia registrada con ese correo electrónico." });
+      return;
+    }
+    if (direccionExistente) {
+      showAlert("error", { message: "Ya existe una farmacia registrada en esa dirección." });
+      return;
+    }
+    if (telefonoExistente) {
+      showAlert("error", { message: "Ya existe una farmacia registrada con ese teléfono." });
+      return;
+    }
+
+    // Crear usuario en Auth
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    await signInWithEmailAndPassword(auth, email, password); // 🔐 fuerza autenticación activa
+
+    const user = auth.currentUser;
+
+    // Crear farmacia en Firestore
+    await createFarmacia(
+      { email, nombre, direccion, rol: "farmacia", telefono },
+      user.uid
+    );
+
+    console.log("Usuario registrado:", user.uid);
+    showAlert("success", { message: "Registro exitoso" });
+    goLogin();
+  } catch (error) {
+    showAlert("error", { message: "Error al registrar el usuario: " + error.message });
+    console.log("Error al registrar:", error);
+  }
+};
+
 
   return (
     <View style={styles.container}>
