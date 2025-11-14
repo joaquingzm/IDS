@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, FlatList, ActivityIndicator, StyleSheet, Text } from "react-native";
 import { theme } from "../styles/theme";
-import pedidoEnCursoCard from "../components/pedidoEnCursoCard";
+import PedidoEnCursoCard from "../components/PedidoEnCursoCard";
 import { listenPedidosPorEstado } from "../utils/firestoreService";
 import { ESTADOS_PEDIDO } from "../dbConfig";
 import { auth } from "../firebase";
@@ -73,7 +73,7 @@ export default function PedidosEnCursoScreen() {
   {pedidos.length > 0 ? (
     <View style={styles.listContainer}>
       {pedidos.map(({ pedido, oferta }) => (
-        <pedidoEnCursoCard
+        <PedidoEnCursoCard
           key={pedido.id}
           pedidoData={pedido}
           oferta={oferta}
