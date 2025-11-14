@@ -1,135 +1,171 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView,TextInput,SafeAreaView, TouchableOpacity,Modal, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../styles/theme'; 
-import { auth } from '../firebase'; 
-import { signOut } from 'firebase/auth'; 
+import React, { useState, useEffect } from 'react';
+import { View, Text, Pressable, StyleSheet, ScrollView, TextInput, SafeAreaView, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
+import { theme } from '../styles/theme';
+import { auth } from '../firebase';
+import { signOut } from 'firebase/auth';
 import { useNavigation } from 'expo-router';
 import { useAlert } from "../context/AlertContext";
+import { getFarmaciaById } from "../utils/firestoreService";
 
+export default function ProfileScreen() {
+  const [userData, setUserData] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-export default function ProfileScreen({}) {
-  const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
-  const [dontSaveCredentials, setDontSaveCredentials] = useState(false);
   const navigation = useNavigation();
   const { showAlert } = useAlert();
-   const [loading, setLoading]= useState(false);
+
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  // 🔹 Cargar datos del usuario desde Firestore
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const uid = auth.currentUser?.uid;
+
+        if (!uid) {
+          showAlert("error", { message: "No hay usuario logueado" });
+          return;
+        }
+
+        const doc = await getFarmaciaById(uid);
+        if (doc) {
+          setUserData(doc);
+        } else {
+          showAlert("error", { message: "No se encontraron datos del usuario" });
+        }
+      } catch (err) {
+        console.error("Error cargando datos:", err);
+        showAlert("error");
+      } finally {
+        setLoadingUser(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const handleLogout = async () => {
     setLoading(true);
     await sleep(300);
+
     signOut(auth)
       .then(() => {
         setLoading(false);
-        showAlert("signout_success")
+        showAlert("signout_success");
         navigation.reset({
-      index: 0,
-      routes: [{ name: 'Login' }],
-    }); 
+          index: 0,
+          routes: [{ name: "Login" }],
+        });
       })
       .catch((error) => {
         setLoading(false);
         console.error("Error al cerrar sesión: ", error);
-        showAlert("singout_error")
+        showAlert("signout_error");
       });
   };
 
+  if (loadingUser) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-  <SafeAreaView style={styles.safeArea}>
-    <ScrollView 
-      style={styles.scrollContainer}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-    >
-      <Text style={styles.sectionTitle}>Información de cuenta</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.sectionTitle}>Información de cuenta</Text>
 
-      <View style={styles.card}>
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Nombre</Text>
-          <TextInput
-            value="Farmacia Don Roberto"
-            editable={false}
-            style={styles.input}
-          />
+        <View style={styles.card}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Nombre</Text>
+            <TextInput
+              value={userData?.nombre || ""}
+              editable={false}
+              style={styles.input}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Dirección</Text>
+            <TextInput
+              value={userData?.direccion || ""}
+              editable={false}
+              style={styles.input}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Mail</Text>
+            <TextInput
+              value={auth.currentUser?.email || "..."}
+              editable={false}
+              style={styles.input}
+            />
+          </View>
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Dirección</Text>
-          <TextInput
-            value="Av 1 e 30 y 36 Nro 1675"
-            editable={false}
-            style={styles.input}
-          />
-        </View>
+        <Text style={styles.sectionTitle}>Teléfono</Text>
+        <View style={styles.card}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Nro de teléfono</Text>
+            <TextInput
+              value={userData?.telefono || ""}
+              editable={false}
+              style={styles.input}
+            />
+          </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Mail</Text>
-          <TextInput
-            value={auth.currentUser ? auth.currentUser.email : "..."}
-            editable={false}
-            style={styles.input}
-          />
-        </View>
-      </View>
-
-      <Text style={styles.sectionTitle}>Teléfono</Text>
-      <View style={styles.card}>
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Nro de teléfono</Text>
-          <TextInput
-            value="123456789"
-            editable={false}
-            style={styles.input}
-          />
+          <Pressable
+            onPress={() =>
+              showAlert("info", { message: "Función de actualización de Nro de teléfono próximamente disponible" })
+            }
+            style={({ pressed }) => [
+              styles.outlineButton,
+              pressed && { backgroundColor: theme.colors.card },
+            ]}
+          >
+            <Text style={styles.outlineButtonText}>Actualizar número de teléfono</Text>
+          </Pressable>
         </View>
 
         <Pressable
-          onPress={() => showToast('Función de actualización de Nro de teléfono próximamente disponible')}
+          onPress={() => showAlert("info", { message: "Redirigiendo a cambiar contraseña" })}
           style={({ pressed }) => [
             styles.outlineButton,
             pressed && { backgroundColor: theme.colors.card },
           ]}
         >
-          <Text style={styles.outlineButtonText}>Actualizar número de teléfono</Text>
+          <Text style={styles.outlineButtonText}>Cambiar contraseña</Text>
         </Pressable>
-      </View>
 
-      <Pressable
-        onPress={() => showToast('Redirigiendo a cambiar contraseña')}
-        style={({ pressed }) => [
-          styles.outlineButton,
-          pressed && { backgroundColor: theme.colors.card },
-        ]}
-      >
-        <Text style={styles.outlineButtonText}>Cambiar contraseña</Text>
-      </Pressable>
-
-             <Modal
-          visible={loading}
-          transparent={true}
-          animationType="fade"
-          statusBarTranslucent={true}
-          >
+        <Modal visible={loading} transparent animationType="fade" statusBarTranslucent>
           <View style={styles.overlay}>
-          {/* 🔹 Spinner de carga */}
             <ActivityIndicator size="large" color={theme.colors.primary} />
           </View>
-          </Modal>
-      
-               <TouchableOpacity 
+        </Modal>
+
+        <TouchableOpacity
           style={[styles.outlineButton, { borderColor: theme.colors.destructive, marginTop: theme.spacing.md }]}
           onPress={handleLogout}
         >
           <Text style={[styles.outlineButtonText, { color: theme.colors.destructive }]}>
             Cerrar sesión
           </Text>
-          
-        </TouchableOpacity>   
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
-);
+  );
 }
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -192,30 +228,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: theme.spacing.sm,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 3,
-    elevation: 2,
-    transition: "background-color 0.2s ease",
   },
   outlineButtonText: {
     color: theme.colors.foreground,
     fontWeight: theme.typography.fontWeight.medium,
     fontSize: theme.typography.fontSize.md,
   },
-  destructiveButton: {
-    borderColor: theme.colors.destructive,
-    marginTop: theme.spacing.lg,
-  },
-  destructiveText: {
-    color: theme.colors.destructive,
-  },
-   overlay: {
+  overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.7)",
     justifyContent: "center",
     alignItems: "center",
   },
 });
-
