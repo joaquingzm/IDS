@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from "react-native";
 import { theme } from "../styles/theme";
 import PedidoUsuarioCard from "../components/PedidoCard";
@@ -9,12 +9,14 @@ import firestoreService, { listenPedidosPorEstado } from "../utils/firestoreServ
 
 export default function OfertsScreen({ navigation }) {
   const [pedidoActual, setPedidoActual] = useState(null);
-const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const firstLoaded = useRef(false); // evita setLoading(false) prematuro
 
-useEffect(() => {
+  useEffect(() => {
   let unsubActivos = null;
   let unsubEntrantes = null;
-  let unsubPendientes = null; // 🔹 para pedidos PENDIENTE
+  let unsubPendientes = null;
+  let unsubConfirmacion = null; // <-- nuevo
 
   const subscribeToPedidos = async () => {
     try {
@@ -26,22 +28,31 @@ useEffect(() => {
       }
 
       const handlePedidos = async (pedidos, tipo) => {
-        const pedidosUser = pedidos.filter(
-          (p) => p[CAMPOS_PEDIDO.USER_ID] === currentUserId
-        );
-
-        if (pedidosUser.length === 0){
-          setLoading(false);
-          return;
-        } 
-
-        // Elegir el primero
-        const pedido = pedidosUser[0];
-        if (!pedido?.id) return;
-
         try {
-          const ofertas = await firestoreService.listOfertasForPedido(pedido.id);
+          // filtrá por user id
+          const pedidosUser = pedidos.filter(
+            (p) => p[CAMPOS_PEDIDO.USER_ID] === currentUserId
+          );
 
+          if (pedidosUser.length === 0) {
+            console.log(`[listen ${tipo}] No pedidos para el usuario`);
+            setPedidoActual(null);
+            if (!firstLoaded.current) {
+              setLoading(false);
+              firstLoaded.current = true;
+            }
+            return;
+          }
+
+          // Elegimos el primer pedido (podés cambiar lógica: ordenar por fecha etc)
+          const pedido = pedidosUser[0];
+          if (!pedido?.id) {
+            console.warn(`[listen ${tipo}] pedido sin id`);
+            return;
+          }
+
+          // Obtener ofertas y farmacia relacionadas
+          const ofertas = await firestoreService.listOfertasForPedido(pedido.id);
           const ofertaSeleccionada = ofertas.find(
             (of) => of[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.ACEPTADA
           );
@@ -51,15 +62,20 @@ useEffect(() => {
             farmacia = await firestoreService.getFarmaciaById(ofertaSeleccionada.farmaciaId);
           }
 
+          // seteo el pedido actual (object con pedido, farmacia y oferta)
           setPedidoActual({ pedido, farmacia, ofertaSeleccionada });
+          console.log(`[listen ${tipo}] seteado pedidoActual id=${pedido.id}`);
         } catch (err) {
-          console.error(err);
+          console.error("handlePedidos error:", err);
         } finally {
-          setLoading(false);
+          if (!firstLoaded.current) {
+            setLoading(false);
+            firstLoaded.current = true;
+          }
         }
       };
 
-      // 🔥 Escucha en tiempo real para ACTIVO, ENTRANTE y PENDIENTE
+      // subscripciones en tiempo real (ahora incluye CONFIRMACION)
       unsubActivos = listenPedidosPorEstado(ESTADOS_PEDIDO.ACTIVO, (pedidos) =>
         handlePedidos(pedidos, "ACTIVO")
       );
@@ -69,8 +85,12 @@ useEffect(() => {
       unsubPendientes = listenPedidosPorEstado(ESTADOS_PEDIDO.PENDIENTE, (pedidos) =>
         handlePedidos(pedidos, "PENDIENTE")
       );
+      unsubConfirmacion = listenPedidosPorEstado(ESTADOS_PEDIDO.CONFIRMACION, (pedidos) =>
+        handlePedidos(pedidos, "CONFIRMACION")
+      ); // <-- nueva suscripción
     } catch (error) {
       Alert.alert("Error", "No se pudo cargar los pedidos en tiempo real.");
+      console.error(error);
       setLoading(false);
     }
   };
@@ -80,7 +100,8 @@ useEffect(() => {
   return () => {
     if (unsubActivos) unsubActivos();
     if (unsubEntrantes) unsubEntrantes();
-    if (unsubPendientes) unsubPendientes(); // 🔹 limpiar la suscripción
+    if (unsubPendientes) unsubPendientes();
+    if (unsubConfirmacion) unsubConfirmacion(); // <-- cleanup
   };
 }, []);
 
@@ -92,7 +113,6 @@ useEffect(() => {
         backgroundColor: theme.colors.background,
       }}
     >
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>RappiFarma</Text>
         <Text style={styles.headerSubtitle}>Disponible 24/7</Text>
@@ -104,7 +124,9 @@ useEffect(() => {
         {loading ? (
           <ActivityIndicator size="large" color={theme.colors.primary} />
         ) : pedidoActual ? (
+          // añadí key para forzar remount cuando cambie el id
           <PedidoUsuarioCard
+            key={pedidoActual.pedido.id}
             pedido={pedidoActual.pedido}
             oferta={pedidoActual.ofertaSeleccionada}
             farmacia={pedidoActual.farmacia}

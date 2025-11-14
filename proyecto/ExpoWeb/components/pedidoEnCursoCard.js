@@ -18,139 +18,133 @@ export default function pedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
   const [procesando, setProcesando] = useState(false);
 
   const safeClone = (obj) => {
-  try {
-    // clon simple y seguro para debugging (no conservará Timestamp como Date)
-    return obj ? JSON.parse(JSON.stringify(obj)) : {};
-  } catch {
-    // fallback si no se puede stringify (objetos con funciones)
-    return { ...(obj || {}) };
-  }
-};
-
-  const avanzarEstado = () => {
-    const orden = ["Pendiente", "En camino", "Entregado", "Finalizado"];
-    const estadoActual = pedido.estado || "Pendiente";
-    const siguiente =
-      orden[orden.indexOf(estadoActual) + 1] || "Finalizado";
-
-    if (siguiente === "Finalizado") {
-      moverAHistorial(); // acá sí se actualiza en Firestore
-    } else {
-      // solo actualiza en la UI
-      setPedido((prev) => ({ ...prev, estado: siguiente }));
+    try {
+      return obj ? JSON.parse(JSON.stringify(obj)) : {};
+    } catch {
+      return { ...(obj || {}) };
     }
   };
 
-  const moverAHistorial = async () => {
-  if (procesando) return;
+  // Avanza estados locales/servidor:
+  // - Pendiente -> En camino -> Entregado -> (DB: CONFIRMACION) -> espera usuario
+  // No existe más "Finalizado" desde la farmacia; la confirmación final la hace el usuario (REALIZADO)
+  const avanzarEstado = async () => {
+    if (procesando) return;
+    const estadoActual = pedido?.estado || pedidoData?.estado || "Pendiente";
 
-  if (!pedido && !pedidoData) {
-    console.warn("moverAHistorial: no hay pedido cargado");
-    return;
-  }
+    // si ya está en confirmacion o realizado o rechazado, no avanzar
+    if (
+      estadoActual === ESTADOS_PEDIDO.CONFIRMACION ||
+      estadoActual === ESTADOS_PEDIDO.REALIZADO ||
+      estadoActual === ESTADOS_PEDIDO.RECHAZADO
+    ) {
+      return;
+    }
 
-  const confirmar =
-    Platform.OS === "web"
-      ? window.confirm("¿Marcar el pedido como finalizado?")
-      : await new Promise((resolve) =>
-          Alert.alert(
-            "Confirmar",
-            "¿Marcar el pedido como finalizado?",
-            [
-              { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
-              { text: "Aceptar", onPress: () => resolve(true) },
-            ],
-            { cancelable: true }
-          )
-        );
+    // Determinamos siguiente estado lógico (solo para UI local)
+    const orden = ["Pendiente", "En camino", "Entregado"];
+    const idx = orden.indexOf(estadoActual);
+    const siguienteString = orden[idx + 1] || orden[orden.length - 1];
 
-  if (!confirmar) return;
+    // Si siguiente es "Entregado" -> debemos marcar en DB CONFIRMACION y dejar esperando al usuario
+    const confirmar =
+      Platform.OS === "web"
+        ? window.confirm(`¿Marcar pedido como "${siguienteString}" y esperar confirmación del cliente?`)
+        : await new Promise((resolve) =>
+            Alert.alert(
+              "Confirmar",
+              `¿Marcar pedido como "${siguienteString}" y esperar confirmación del cliente?`,
+              [
+                { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
+                { text: "Aceptar", onPress: () => resolve(true) },
+              ],
+              { cancelable: true }
+            )
+          );
 
-  setProcesando(true);
-  try {
-    const base = pedido ?? pedidoData ?? {};
-    // clonamos para evitar sorpresas con prototipos o referencias
-    const newPedido = { ...safeClone(base), estado: "Finalizado" };
+    if (!confirmar) return;
 
-    console.log("moverAHistorial -> newPedido:", newPedido);
+    setProcesando(true);
 
-    const pedidoRef = doc(db, COLECCION_PEDIDO, newPedido.id);
-    await updateDoc(pedidoRef, {
-      [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.REALIZADO,
-    });
+    try {
+      // para "Entregado" actualizamos DB a ESTADOS_PEDIDO.CONFIRMACION
+      if (siguienteString === "Entregado") {
+        const base = pedido ?? pedidoData ?? {};
+        const pedidoRef = doc(db, COLECCION_PEDIDO, base.id);
+        await updateDoc(pedidoRef, {
+          [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.CONFIRMACION,
+        });
 
-    setPedido(newPedido);
+        const newPedido = { ...safeClone(base), estado: ESTADOS_PEDIDO.CONFIRMACION };
+        setPedido(newPedido);
+        // no llamamos a onPedidoEliminado: se queda en lista esperando confirmación del usuario
+        if (Platform.OS === "web") window.alert("Pedido marcado como entregado. Esperando confirmación del cliente.");
+        else Alert.alert("Ok", "Pedido marcado como entregado. Esperando confirmación del cliente.");
+        return;
+      }
 
-    if (onPedidoEliminado) onPedidoEliminado(newPedido.id);
-
-    if (Platform.OS === "web") window.alert("Pedido finalizado correctamente");
-    else Alert.alert("Éxito", "Pedido finalizado correctamente");
-  } catch (error) {
-    console.error("Error al finalizar pedido:", error);
-    Alert.alert("Error", "No se pudo marcar como finalizado.");
-  } finally {
-    setProcesando(false);
-  }
-};
+      // si siguiente es "En camino" (o otros) sólo actualizamos UI local (como en tu flujo previo)
+      const newLocal = { ...(pedido ?? pedidoData ?? {}), estado: siguienteString };
+      setPedido(newLocal);
+    } catch (error) {
+      console.error("Error avanzando estado:", error);
+      Alert.alert("Error", "No se pudo avanzar el estado del pedido.");
+    } finally {
+      setProcesando(false);
+    }
+  };
 
   const cancelarPedido = async () => {
-  if (procesando) return;
+    if (procesando) return;
 
-  if (!pedido && !pedidoData) {
-    console.warn("cancelarPedido: no hay pedido cargado");
-    return;
-  }
+    const confirmar =
+      Platform.OS === "web"
+        ? window.confirm("¿Rechazar este pedido?")
+        : await new Promise((resolve) =>
+            Alert.alert(
+              "Confirmar rechazo",
+              "¿Estás seguro de rechazar este pedido?",
+              [
+                { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
+                { text: "Rechazar", style: "destructive", onPress: () => resolve(true) },
+              ],
+              { cancelable: true }
+            )
+          );
 
-  const confirmar =
-    Platform.OS === "web"
-      ? window.confirm("¿Rechazar este pedido?")
-      : await new Promise((resolve) =>
-          Alert.alert(
-            "Confirmar rechazo",
-            "¿Estás seguro de rechazar este pedido?",
-            [
-              { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
-              { text: "Rechazar", style: "destructive", onPress: () => resolve(true) },
-            ],
-            { cancelable: true }
-          )
-        );
+    if (!confirmar) return;
 
-  if (!confirmar) return;
+    setProcesando(true);
+    try {
+      const base = pedido ?? pedidoData ?? {};
+      const newPedido = { ...safeClone(base), estado: "Rechazado" };
 
-  setProcesando(true);
-  try {
-    const base = pedido ?? pedidoData ?? {};
-    const newPedido = { ...safeClone(base), estado: "Rechazado" };
+      const pedidoRef = doc(db, COLECCION_PEDIDO, newPedido.id);
+      await updateDoc(pedidoRef, {
+        [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.RECHAZADO,
+      });
 
-    console.log("cancelarPedido -> newPedido:", newPedido);
+      setPedido(newPedido);
 
-    const pedidoRef = doc(db, COLECCION_PEDIDO, newPedido.id);
-    await updateDoc(pedidoRef, {
-      [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.RECHAZADO,
-    });
+      if (onPedidoEliminado) onPedidoEliminado(newPedido.id);
 
-    setPedido(newPedido);
+      if (Platform.OS === "web") window.alert("Pedido rechazado correctamente");
+      else Alert.alert("Pedido rechazado", "Se marcó como rechazado correctamente");
+    } catch (error) {
+      console.error("Error al rechazar pedido:", error);
+      Alert.alert("Error", "No se pudo rechazar el pedido.");
+    } finally {
+      setProcesando(false);
+    }
+  };
 
-    if (onPedidoEliminado) onPedidoEliminado(newPedido.id);
-
-    if (Platform.OS === "web") window.alert("Pedido rechazado correctamente");
-    else Alert.alert("Pedido rechazado", "Se marcó como rechazado correctamente");
-  } catch (error) {
-    console.error("Error al rechazar pedido:", error);
-    Alert.alert("Error", "No se pudo rechazar el pedido.");
-  } finally {
-    setProcesando(false);
-  }
-};
-
-    const producto = oferta[CAMPOS_OFERTA.MEDICAMENTO] || "Medicamentos no especificados";
-    const cliente =
-    `${pedido[CAMPOS_PEDIDO.NOMBRE_USUARIO] || ""} ${pedido[CAMPOS_PEDIDO.APELLIDO_USUARIO] || ""}`.trim() ||
+  const producto = oferta?.[CAMPOS_OFERTA.MEDICAMENTO] || "Medicamentos no especificados";
+  const cliente =
+    `${pedido?.[CAMPOS_PEDIDO.NOMBRE_USUARIO] || ""} ${pedido?.[CAMPOS_PEDIDO.APELLIDO_USUARIO] || ""}`.trim() ||
     "Cliente no especificado";
-    const direccion = pedido[CAMPOS_PEDIDO.DIRECCION] || "Dirección no especificada";
-    const monto = oferta[CAMPOS_OFERTA.MONTO] ? `$${oferta[CAMPOS_OFERTA.MONTO]}` : "Monto no especificado";
-    const obraSocial = pedido[CAMPOS_PEDIDO.OBRASOCIAL] || "Obra social no especificada";
+  const direccion = pedido?.[CAMPOS_PEDIDO.DIRECCION] || "Dirección no especificada";
+  const monto = oferta?.[CAMPOS_OFERTA.MONTO] ? `$${oferta[CAMPOS_OFERTA.MONTO]}` : "Monto no especificado";
+  const obraSocial = pedido?.[CAMPOS_PEDIDO.OBRASOCIAL] || "Obra social no especificada";
 
   const formatFecha = (f) => {
     try {
@@ -164,12 +158,23 @@ export default function pedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
     }
   };
 
+  // Mostrar texto amigable según estado real (usando constantes DB cuando corresponde)
+  const estadoReal = pedido?.estado ?? pedidoData?.estado ?? "Pendiente";
+  const estadoLabel =
+    estadoReal === ESTADOS_PEDIDO.CONFIRMACION
+      ? "Entregado, esperando confirmacion del cliente"
+      : estadoReal === ESTADOS_PEDIDO.REALIZADO
+      ? "Entrega confirmada"
+      : estadoReal === ESTADOS_PEDIDO.RECHAZADO
+      ? "Rechazado"
+      : estadoReal; // para otros (Pendiente, En camino, etc.) mostramos tal cual
+
   return (
     <TouchableOpacity
       style={[
         styles.card,
-        pedido.estado === "Finalizado" && styles.cardFinalizado,
-        pedido.estado === "Rechazado" && styles.cardCancelado,
+        (estadoReal === ESTADOS_PEDIDO.REALIZADO) && styles.cardFinalizado,
+        (estadoReal === ESTADOS_PEDIDO.RECHAZADO) && styles.cardCancelado,
         procesando && styles.cardProcesando,
       ]}
       onPress={() => setExpandido(!expandido)}
@@ -178,7 +183,7 @@ export default function pedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
     >
       <View style={styles.infoContainer}>
         <Text style={styles.title}>
-          Pedido #{pedido.id?.substring(0, 8) || "N/A"}
+          Pedido #{(pedido?.id ?? pedidoData?.id ?? "N/A").substring?.(0, 8) || "N/A"}
         </Text>
 
         <View style={styles.detallesContainer}>
@@ -203,7 +208,7 @@ export default function pedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
             {producto}
           </Text>
 
-          {pedido.fechaPedido && (
+          {pedido?.fechaPedido && (
             <Text style={styles.text}>
               <Text style={styles.label}>Fecha: </Text>
               {formatFecha(pedido.fechaPedido)}
@@ -214,18 +219,21 @@ export default function pedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
         <Text
           style={[
             styles.estado,
-            pedido.estado === "Pendiente" && { color: theme.colors.primary },
-            pedido.estado === "En camino" && { color: theme.colors.secondaryForeground },
-            pedido.estado === "Entregado" && { color: theme.colors.success },
-            pedido.estado === "Rechazado" && { color: theme.colors.destructive },
+            estadoReal === "Pendiente" && { color: theme.colors.primary },
+            estadoReal === "En camino" && { color: theme.colors.secondaryForeground },
+            estadoReal === ESTADOS_PEDIDO.CONFIRMACION && { color: theme.colors.secondaryForeground },
+            estadoReal === ESTADOS_PEDIDO.REALIZADO && { color: theme.colors.success },
+            estadoReal === ESTADOS_PEDIDO.RECHAZADO && { color: theme.colors.destructive },
           ]}
         >
-          Estado: {pedido.estado || "Pendiente"}
+          Estado: {estadoLabel}
         </Text>
 
+        {/* botones: solo cuando no esté en confirmación/realizado/rechazado */}
         {expandido &&
-          pedido.estado !== "Finalizado" &&
-          pedido.estado !== "Rechazado" && (
+          estadoReal !== ESTADOS_PEDIDO.CONFIRMACION &&
+          estadoReal !== ESTADOS_PEDIDO.REALIZADO &&
+          estadoReal !== ESTADOS_PEDIDO.RECHAZADO && (
             <View style={styles.botonesContainer}>
               <TouchableOpacity
                 style={[styles.boton, styles.botonPrimario]}
@@ -233,9 +241,7 @@ export default function pedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
                 disabled={procesando}
               >
                 <Text style={styles.botonTexto}>
-                  {pedido.estado === "Entregado"
-                    ? "Finalizar pedido"
-                    : "Avanzar estado"}
+                  {estadoReal === "Entregado" ? "Marcar entregado" : "Avanzar estado"}
                 </Text>
               </TouchableOpacity>
 

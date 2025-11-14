@@ -7,6 +7,7 @@ export const ESTADOS_PEDIDO = {
   PENDIENTE: "pendiente",
   ACTIVO: "activo",
   REALIZADO: "realizado",
+  CONFIRMACION: "confirmacion",
   RECHAZADO: "rechazado",
 };
 

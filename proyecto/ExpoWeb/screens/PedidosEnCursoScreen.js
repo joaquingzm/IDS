@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, FlatList, ActivityIndicator, StyleSheet, Text } from "react-native";
 import { theme } from "../styles/theme";
-import PedidoEnCursoCard from "../components/PedidoEnCursoCard";
+import PedidoEnCursoCard from "../components/pedidoEnCursoCard";
 import { listenPedidosPorEstado } from "../utils/firestoreService";
 import { ESTADOS_PEDIDO } from "../dbConfig";
 import { auth } from "../firebase";
@@ -19,37 +19,63 @@ export default function PedidosEnCursoScreen() {
       return;
     }
   
-    const unsub = listenPedidosPorEstadoYFarmacia(
-      ESTADOS_PEDIDO.ACTIVO,
-      farmaciaId,
-      async (pedidosSnapshot) => {
+    const latestSnapshots = { activo: [], confirmacion: [] };
+
+const processCombined = async () => {
+  try {
+    // combinar y eliminar duplicados por id
+    const combinedRaw = [...latestSnapshots.activo, ...latestSnapshots.confirmacion];
+    const map = new Map();
+    combinedRaw.forEach((p) => map.set(p.id, p));
+    const uniquePedidos = Array.from(map.values());
+
+    // enriquecer con ofertas
+    const pedidosEnriquecidos = await Promise.all(
+      uniquePedidos.map(async (pedido) => {
         try {
-          // Enriquecer cada pedido con su oferta asociada
-          const pedidosEnriquecidos = await Promise.all(
-            pedidosSnapshot.map(async (pedido) => {
-              try {
-                const ofertas = await listOfertasForPedido(pedido.id);
-                const ofertaAsociada = ofertas.find(
-                  (of) => of.farmaciaId === farmaciaId // o el campo correcto según tu modelo
-                );
-  
-                return { pedido, oferta: ofertaAsociada || null };
-              } catch (err) {
-                console.warn("Error enriqueciendo pedido:", pedido.id, err);
-                return { pedido, oferta: null };
-              }
-            })
-          );
-  
-          setPedidos(pedidosEnriquecidos);
-        } catch (error) {
-          console.error("Error procesando pedidos pendientes:", error);
-          Alert.alert("Error", "No se pudieron cargar los pedidos pendientes.");
-        } finally {
-          setLoading(false);
+          const ofertas = await listOfertasForPedido(pedido.id);
+          const ofertaAsociada = ofertas.find((of) => of.farmaciaId === farmaciaId);
+          return { pedido, oferta: ofertaAsociada || null };
+        } catch (err) {
+          console.warn("Error enriqueciendo pedido:", pedido.id, err);
+          return { pedido, oferta: null };
         }
-      }
+      })
     );
+
+    setPedidos(pedidosEnriquecidos);
+  } catch (error) {
+    console.error("Error procesando pedidos combinados:", error);
+    Alert.alert("Error", "No se pudieron cargar los pedidos pendientes.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+// suscripciones separadas (una para ACTIVO y otra para CONFIRMACION)
+const unsubActivo = listenPedidosPorEstadoYFarmacia(
+  ESTADOS_PEDIDO.ACTIVO,
+  farmaciaId,
+  async (pedidosSnapshot) => {
+    latestSnapshots.activo = pedidosSnapshot || [];
+    await processCombined();
+  }
+);
+
+const unsubConfirmacion = listenPedidosPorEstadoYFarmacia(
+  ESTADOS_PEDIDO.CONFIRMACION,
+  farmaciaId,
+  async (pedidosSnapshot) => {
+    latestSnapshots.confirmacion = pedidosSnapshot || [];
+    await processCombined();
+  }
+);
+
+// devolvemos un unsubscribe que cancela ambas listeners
+const unsub = () => {
+  try { if (typeof unsubActivo === "function") unsubActivo(); } catch {}
+  try { if (typeof unsubConfirmacion === "function") unsubConfirmacion(); } catch {}
+};
         return () => unsub();
       }, []);
 
