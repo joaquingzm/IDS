@@ -7,11 +7,13 @@ import {
   Image,
   TextInput,
   Pressable,
-  Modal,
+  Modal, 
+  ActivityIndicator,
 } from "react-native";
 import { db } from "../firebase";
 import { doc, setDoc, deleteDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { theme } from "../styles/theme";
+import { useAlert } from "../context/AlertContext";
 
 import {
   COLECCION_USUARIOS,
@@ -31,9 +33,14 @@ import { auth } from "../firebase";
 
 export default function PedidoDisponibleCard({ pedido, farmacia, tiempoEspera }) {
   const farmaciaId = auth.currentUser?.uid;
-
+  const [tiempoEsperaLocal, setTiempoEsperaLocal] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const { showAlert } = useAlert();
+  const [loading, setLoading]= useState(false);
+
+
+
    if (!pedido) {
     console.warn("⚠️ PedidoDisponibleCard recibió pedido = undefined");
     return null;
@@ -43,7 +50,7 @@ export default function PedidoDisponibleCard({ pedido, farmacia, tiempoEspera })
   const textOCR =
   pedido?.[CAMPOS_PEDIDO.OCR] ??
   pedido?.ocr ??
-  pedido?.resultadosOCR ??
+  pedido?.resultadosOCR ?? 
   pedido?.textoOCR ??
   [];
 
@@ -71,38 +78,80 @@ export default function PedidoDisponibleCard({ pedido, farmacia, tiempoEspera })
   };
 
   // CONFIRMAR
-  const handleConfirmarAceptar = async () => {
-    if (items.length === 0) {
-      alert("Debe haber al menos un medicamento.");
-      return;
-    }
+ const handleConfirmarAceptar = async () => {
+  // Validación: al menos un item
+   if (items.length === 0) {
+    showAlert("error", { message: "La oferta debe tener al menos un medicamento." });
+    return;
+  }
 
-    const medicamentosList = items.map((i) => i.medicamento.trim());
-    const montosList = items.map((i) => Number(i.monto) || 0);
+  // Validación: cada campo debe estar cargado
+  for (let i = 0; i < items.length; i++) {
+    const med = items[i].medicamento?.trim();
+    const monto = items[i].monto?.trim();
+const hayVacios = items.some(
+  (i) =>
+    !i.medicamento?.trim() ||
+    !i.monto?.trim()
+);
 
-    try {
-      await updatePedido(pedido.id, {
-        [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.PENDIENTE,
-        [CAMPOS_PEDIDO.FARMACIA_ASIGNADA_ID]: farmaciaId,
-      });
+if (hayVacios) {
+  showAlert("campos_incompletos");
+  return;
+}
 
-      await crearOferta(pedido.id, {
-        [CAMPOS_OFERTA.FARMACIA_ID]: farmaciaId || "",
-        [CAMPOS_OFERTA.NOMBRE_FARMACIA]: farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "",
-        [CAMPOS_OFERTA.MEDICAMENTO]: medicamentosList,
-        [CAMPOS_OFERTA.MONTO]: montosList,
-        [CAMPOS_OFERTA.TIEMPO_ESPERA]: tiempoEspera || null,
-        [CAMPOS_OFERTA.FECHA_OFERTA]: serverTimestamp(),
-        [CAMPOS_OFERTA.ESTADO]: ESTADOS_OFERTA.PENDIENTE,
-      });
+const hayNoNumericos = items.some((i) => isNaN(Number(i.monto)));
 
-      alert("Pedido aceptado con éxito");
-      setMostrarFormulario(false);
-    } catch (error) {
-      console.error("Error al aceptar pedido:", error);
-      alert("Error al aceptar el pedido.");
-    }
-  };
+  if (hayNoNumericos) {
+    showAlert("error", { message: "Uno o más montos no son números válidos." });
+    return;
+  }
+
+
+// Validar montos inválidos
+ const hayMontosInvalidos = items.some(
+    (i) => Number(i.monto) <= 0
+  );
+
+  if (hayMontosInvalidos) {
+    showAlert("error", { message: "Los montos deben ser mayores a 0." });
+    return;
+  }
+
+// Validar tiempo de espera
+
+if (!tiempoEsperaLocal || isNaN(Number(tiempoEsperaLocal)) || Number(tiempoEsperaLocal) <= 0) {
+  showAlert("campo_invalido", { message: "Por favor ingrese un tiempo de espera valido."});
+  return;
+}
+  }
+
+  const medicamentosList = items.map((i) => i.medicamento.trim());
+  const montosList = items.map((i) => Number(i.monto));
+
+  try {
+    await updatePedido(pedido.id, {
+      [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.PENDIENTE,
+      [CAMPOS_PEDIDO.FARMACIA_ASIGNADA_ID]: farmaciaId,
+    });
+
+    await crearOferta(pedido.id, {
+      [CAMPOS_OFERTA.FARMACIA_ID]: farmaciaId || "",
+      [CAMPOS_OFERTA.NOMBRE_FARMACIA]: farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "",
+      [CAMPOS_OFERTA.MEDICAMENTO]: medicamentosList,
+      [CAMPOS_OFERTA.MONTO]: montosList,
+      [CAMPOS_OFERTA.TIEMPO_ESPERA]: Number(tiempoEsperaLocal),
+      [CAMPOS_OFERTA.FECHA_OFERTA]: serverTimestamp(),
+      [CAMPOS_OFERTA.ESTADO]: ESTADOS_OFERTA.PENDIENTE,
+    });
+    
+    showAlert("oferta_success")
+    setMostrarFormulario(false);
+  } catch (error) {
+    console.error("Error al aceptar pedido:", error);
+    showAlert("error", {message:"Error al enviar oferta." })
+  }
+};
 
   const handleCancelarAceptar = () => {
     setMostrarFormulario(false);
@@ -113,10 +162,10 @@ export default function PedidoDisponibleCard({ pedido, farmacia, tiempoEspera })
       await updatePedido(pedido.id, {
         [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.RECHAZADO,
       });
-      alert("Pedido rechazado.");
+      showAlert("pedido_rechazado_success")
     } catch (error) {
       console.error("Error al rechazar:", error);
-      alert("Error al rechazar el pedido.");
+      showAlert("error", {message:"Error al rechazar el pedido." })
     }
   };
 
@@ -215,6 +264,17 @@ export default function PedidoDisponibleCard({ pedido, farmacia, tiempoEspera })
             <Text style={styles.botonTexto}>+</Text>
           </TouchableOpacity>
 
+          <View style={{ marginTop: 10 }}>
+            <Text style={styles.inputLabel}>Tiempo de espera (minutos)</Text>
+            <TextInput
+              style={styles.textInput}
+              value={tiempoEsperaLocal}
+              placeholder=""
+              keyboardType="numeric"
+              onChangeText={setTiempoEsperaLocal}
+            />
+          </View>
+
           <View style={styles.formularioActions}>
             <TouchableOpacity style={[styles.button, styles.confirmar]} onPress={handleConfirmarAceptar}>
               <Text style={styles.buttonText}>Confirmar</Text>
@@ -257,6 +317,10 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     marginHorizontal: 12,
     elevation: 3,
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
   },
   imageRow: {
     flexDirection: "row",
@@ -300,12 +364,13 @@ const styles = StyleSheet.create({
   },
 
   textInput: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 10,
-    borderRadius: 8,
-  },
+  backgroundColor: "#fff",
+  borderWidth: 1,
+  borderColor: "#ccc",
+  paddingHorizontal: 10,
+  borderRadius: 8,
+  height: 40,  
+},
   inputLabel: { fontSize: 13, marginBottom: 4 },
 
   botonMas: {
@@ -317,16 +382,20 @@ const styles = StyleSheet.create({
   },
 
   botonMenos: {
-    backgroundColor: "#d9534f",
-    marginLeft: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 1,
-    borderRadius: 6,
-    marginVertical: 4,
-    
-  },
-
-  botonTexto: { fontSize: 20, color: "#fff" },
+  backgroundColor: "#d9534f",
+  marginLeft: 6,
+  width: 30,
+  height: 30,        
+  borderRadius: 8,
+  justifyContent: "center",  
+  alignItems: "center",
+  marginTop: 18,       
+},
+ botonTexto: {
+  fontSize: 22,
+  color: "#fff",
+  lineHeight: 22,
+},
 
   actionsContainer: {
     flexDirection: "row",

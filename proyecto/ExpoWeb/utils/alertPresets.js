@@ -15,6 +15,13 @@ export const alertPresets = {
     message: "Ocurrió un problema al procesar la acción.",
   },
 
+  error: {
+    type: "toast",
+    preset: "error",
+    title: "Error",
+    message: "{{message}}",
+  },
+
  
   login_error: {
   type: "toast",
@@ -27,6 +34,21 @@ login_success: {
   preset: "done",
   title: "Bienvenido {{nombre}} ",
   message: "Sesión iniciada correctamente.",
+},
+
+oferta_success: {
+  type: "toast",
+  preset: "done",
+  title: "Oferta enviada ",
+  message: "Tu oferta fue procesada correctamente .",
+},
+
+
+pedido_rechazado_success: {
+  type: "toast",
+  preset: "done",
+  title: "Pedido recahzado ",
+  message: "El pedido fue rechazado exitosamente.",
 },
 
   // Podemos hacer alertas con botones de esta manera
