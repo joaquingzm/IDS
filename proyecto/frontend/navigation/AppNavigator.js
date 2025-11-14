@@ -10,19 +10,21 @@ import { db, auth } from "../firebase";
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 import { uploadImageToCloudinary } from "../context/uploadImage";
 import { useNavigation } from "@react-navigation/native";
-import { getUsuarioByEmail, getUsuarioByUid, crearPedido } from "../utils/firestoreService"
+import { checkPedidoExistente, getUsuarioByUid, crearPedido } from "../utils/firestoreService"
+import { confirm } from "../utils/ConfirmService";
 
 
 // Import de las  pantallas
-import LoginScreen from '../screens/LoginScreen';
-import HomeScreen from '../screens/HomeScreen';
-import SearchScreen from '../screens/SearchScreen';
-import OfertsScreen from '../screens/OfertsScreen';
-import ProfileScreen from '../screens/ProfileScreen';
-import RegisterScreen from '../screens/RegisterScreen';
-import OrderHistoryScreen from '../screens/OrderHistoryScreen';
-import OfertsPendingScreen from '../screens/OfertsPendingScreen';
+import LoginScreen from '../screens/Login';
+import HomeScreen from '../screens/Inicio';
+import SearchScreen from '../screens/Busqueda';
+import OfertsScreen from '../screens/Pedidos';
+import ProfileScreen from '../screens/Perfil';
+import RegisterScreen from '../screens/Registro';
+import OrderHistoryScreen from '../screens/Historial';
+import OfertsPendingScreen from '../screens/Ofertas';
 import firestoreService from '../utils/firestoreService';
+import { useAlert } from "../context/AlertContext";
 
 import {
   COLECCION_USUARIOS,
@@ -65,24 +67,45 @@ function MainTabs() {
   const [loading, setLoading] = useState(false);
   const [estadoCarga, setEstadoCarga] = useState("");
   const navigation = useNavigation();
+  const { showAlert } = useAlert();
+  const resultOCR = '';
+
   const handleCameraPress = async () => {
+    setPhotoUri(null);
+    const currentUser = auth.currentUser;
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-    console.log("Abrir cámara...");
-    const uri = await openCameraAndTakePhoto();
+
+    const {pedidoExistente} = await checkPedidoExistente(currentUser.uid);
+    if (pedidoExistente){
+      showAlert("pedido_error", { message: "Ya tiene un pedido en curso. Espere a que finalice antes de cargar una nueva receta." });
+      return
+    }
+
+    const urii = await openCameraAndTakePhoto();
     setEstadoCarga("Subiendo imagen ...");
     setLoading(true);
     await sleep(1500);
-    if (!uri) {
-      console.log("No se obtuvo URI de la cámara.");
+
+    if (!urii) {
       setLoading(false);
+      showAlert("pedido_error", { message: "No se pudo cargar la receta. Intente nuevamente." });
       return;
     }
+    setLoading(false);
+    setPhotoUri(urii);
 
+    const ok = await confirm("confirmar_eliminar_pedido", { id: "Holaaaa", image: urii });
+    
+    if (!ok){
+      showAlert("pedido_error", { title: "Aviso",message: "Receta no cargada." });
+      return
+    }
     // ENVIAR AL BACKEND
+    setLoading(true);
     try {
 
-      console.log("Convirtiendo URI a blob...", uri);
-      const responseUri = await fetch(uri);
+      console.log("Convirtiendo URI a blob...", urii);
+      const responseUri = await fetch(urii);
       const blob = await responseUri.blob();
       console.log("Blob creado, size:", blob.size, "type:", blob.type);
 
@@ -93,7 +116,7 @@ function MainTabs() {
       console.log("Enviando imagen al backend OCR...");
       const formDataOCR = new FormData();
       // convert URI -> blob
-      const resp = await fetch(uri);
+      const resp = await fetch(urii);
       if (!resp.ok) {
         const txt = await resp.text().catch(() => "");
         setLoading(false);
@@ -114,34 +137,36 @@ function MainTabs() {
       if (!ocrRes.ok) {
         const body = await ocrRes.text().catch(() => null);
         console.error("OCR backend error:", ocrRes.status, body);
-        Alert.alert("Error", "El servidor OCR devolvió un error: " + (body || ocrRes.status));
         setLoading(false);
-        return;
+        throw new Error();
       }
 
 
-      const resultOCR = await ocrRes.json().catch(() => null);
+      resultOCR = await ocrRes.json().catch(() => null);
       console.log("Respuesta OCR:", resultOCR);
+
+    } catch (error) {
+      console.error("Error OCR:", error);
+      // continuar para intentar subir/crear pedido o terminar
+    }
 
       // 👇 2) Subir imagen a Cloudinary (usamos la función mejorada)
       console.log("Subiendo imagen a Cloudinary...");
-      const imageUrl = await uploadImageToCloudinary(uri); // usa la función mejorada
+      const imageUrl = await uploadImageToCloudinary(urii); // usa la función mejorada
       console.log("Imagen subida con éxito:", imageUrl);
       setEstadoCarga("Creando pedido ...");
-      // 👇 3) Crear pedido en Firestore
-      const currentUser = auth.currentUser;
+      
+    try{
       if (!currentUser) {
-        Alert.alert("Error", "Usuario no autenticado");
         setLoading(false);
-        return;
+        throw new Error();
       }
 
       // Obtener datos del usuario
       const usuario = await getUsuarioByUid(currentUser.uid);
       if (!usuario) {
-        Alert.alert("Error", "No se pudo obtener información del usuario");
         setLoading(false);
-        return;
+        throw new Error();
       }
 
 
@@ -162,23 +187,10 @@ function MainTabs() {
 
       const idPedido = await crearPedido(payload);
       console.log("Pedido guardado en Firestore correctamente, id:", idPedido);
-
-      // Feedback al usuario y navegación
-      if (Platform.OS === 'web') {
-        window.alert("Pedido registrado.\nEstamos esperando ofertas hechas por las farmacias.");
-        navigation.navigate("OfertsPending");
-      } else {
-        Alert.alert(
-          "Pedido registrado",
-          "Estamos esperando ofertas hechas por las farmacias",
-          [{ text: "OK", onPress: () => navigation.navigate("OfertsPending") }]
-        );
-      }
       setLoading(false);
-
-    } catch (error) {
-      console.error("Error en handleCameraPress:", error);
-      Alert.alert("Error", "No se pudo procesar la imagen: " + (error.message || error));
+      showAlert("pedido_success", { message: "La receta fue subida correctamente. Pedido generado." });
+    } catch {
+      showAlert("pedido_error", { message: "No se pudo cargar la receta. Intente nuevamente." });
       setLoading(false);
     }
 
@@ -187,28 +199,54 @@ function MainTabs() {
 
   return (<View style={styles.container}>
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarShowLabel: false,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.mutedForeground,
-        tabBarStyle: styles.tabBar,
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-          if (route.name === 'Home') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Search') {
-            iconName = focused ? 'search' : 'search-outline';
-          } else if (route.name === 'Oferts') {
-            iconName = focused ? 'cube' : 'cube-outline';
-          } else if (route.name === 'Profile') {
-            iconName = focused ? 'person' : 'person-outline';
-          }
-          if (route.name === 'CameraPlaceholder') return null;
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-      })}
-    >
+  screenOptions={({ route }) => ({
+    headerShown: false,
+    tabBarShowLabel: false,
+    tabBarActiveTintColor: theme.colors.primary,
+    tabBarInactiveTintColor: theme.colors.mutedForeground,
+    tabBarStyle: styles.tabBar,
+
+    tabBarIcon: ({ focused, color, size }) => {
+      if (route.name === "CameraPlaceholder") return null;
+
+      let iconName;
+      if (route.name === "Home") {
+        iconName = focused ? "home" : "home-outline";
+      } else if (route.name === "Search") {
+        iconName = focused ? "search" : "search-outline";
+      } else if (route.name === "Oferts") {
+        iconName = focused ? "cube" : "cube-outline";
+      } else if (route.name === "Profile") {
+        iconName = focused ? "person" : "person-outline";
+      }
+
+      const labels = {
+        Home: "Inicio",
+        Search: "Busqueda",
+        Oferts: "Pedidos",
+        Profile: "Perfil",
+      };
+
+      return (
+        <View style={styles.tabItem}>
+          <Ionicons name={iconName} size={focused ? 30 : 24} color={color} />
+          <Text
+            style={[
+              styles.tabLabel,
+              {
+                color,
+                fontWeight: focused ? 700 : 400, // Texto más fuerte cuando está activo
+                 fontSize: focused ? 12 : 11,
+              },
+            ]}
+          >
+            {labels[route.name]}
+          </Text>
+        </View>
+      );
+    },
+  })}
+>
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen
@@ -226,27 +264,27 @@ function MainTabs() {
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
 
-    {/* IMAGEN FLOTANTE: ABAJO A LA DERECHA */}
-    {photoUri && (
-      <Image
-        source={{ uri: photoUri }}
-        style={styles.floatingThumbnail}
-      />
-    )}
+    {/* UN SOLO MODAL COMBINADO: se muestra SOLO cuando loading === true */}
     <Modal
-        visible={loading}
-        transparent={true}
-        animationType="fade"
-        statusBarTranslucent={true}
-      >
-        <View style={styles.overlay}>
-          {/* 🔹 Mensaje arriba del spinner */}
-          <Text style={styles.mensaje}>{estadoCarga}</Text>
+      visible={loading}
+      transparent={true}
+      animationType="fade"
+      statusBarTranslucent={true}
+    >
+      <View style={styles.overlay}>
+        {/* Imagen arriba */}
+        {photoUri ? (
+          <Image source={{ uri: photoUri }} style={styles.fullImage} resizeMode="contain" />
+        ) : null}
 
-          {/* 🔹 Spinner de carga */}
+        {/* Texto + spinner debajo de la imagen */}
+        <View style={{ marginTop: 18, alignItems: 'center' }}>
+          <Text style={styles.mensaje}>{estadoCarga}</Text>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
-      </Modal>
+      </View>
+    </Modal>
+
   </View>);
 }
 
@@ -268,15 +306,28 @@ export default function AppNavigator() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: theme.colors.card,
-    borderTopWidth: 1,
-    borderColor: theme.colors.border,
-    height: 70,
-  },
+  position: "absolute",
+  bottom: 0,
+  left: 0,
+  right: 0,
+  backgroundColor: theme.colors.card,
+  borderTopWidth: 1,
+  borderColor: theme.colors.border,
+  height: 80,
+  paddingBottom: 8,
+},
+
+tabItem: {
+  alignItems: "center",
+  justifyContent: "center",
+  width: 70,
+},
+
+tabLabel: {
+  fontSize: 11,
+  marginTop: 3,
+  textAlign: "center",
+},
   cameraButtonContainer: {
     top: -35,
     justifyContent: 'center',
@@ -316,14 +367,46 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: "rgba(0,0,0,0.8)",
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 20,
   },
   mensaje: {
     color: theme.colors.primary,
-    fontSize: 18,
-    marginBottom: 20, // 🔹 separación entre el texto y el spinner
+    fontSize: 16,
+    marginBottom: 10, // 🔹 separación entre el texto y el spinner
+    textAlign: "center",
+  },
+  modalContent: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  fullImage: {
+    width: "90%",
+    height: "60%",
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  modalTitle: {
+    color: "white",
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 6,
+    textAlign: "center",
+  },
+
+  modalSubtitle: {
+    color: "white",
+    fontSize: 16,
+    marginTop: 12,
     textAlign: "center",
   },
 });

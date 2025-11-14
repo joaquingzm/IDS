@@ -57,6 +57,20 @@ signout_success: {
   message: "Sesión cerrada correctamente.",
 },
 
+pedido_error: {
+  type: "toast",
+  preset: "error",
+  title: "Error del pedido.",
+  message: "{{message}}",
+},
+
+pedido_success: {
+  type: "toast",
+  preset: "done",
+  title: "Pedido exitoso.",
+  message: "Sesión cerrada correctamente.",
+},
+
 campo_invalido: {
     type: "toast",
     preset: "error",
@@ -83,4 +97,12 @@ campo_invalido: {
     ],
   },
 
+  confirmar_eliminar_pedido: {
+    type: "modal",
+    title: "¿Confirmar receta?",
+    actions: (params) => [
+      { title: "Cancelar", style: "cancel", onPress: params.onCancel },
+      { title: "Continuar", style: "destructive", onPress: params.onConfirm },
+    ],
+  },
 };

@@ -64,7 +64,7 @@ export default function ProfileScreen({ navigation }) {
     showAlert("signout_success");
     setLoading(true);
 
-    await sleep(200);
+    await sleep(400);
 
     setLoading(false);
     navigation.replace("Login");

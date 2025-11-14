@@ -221,6 +221,23 @@ export async function deletePedido(pedidoId) {
     await deleteDoc(ref);
 }
 
+export const checkPedidoExistente = async (uid) => {
+  const colRef = collection(db, COLECCION_PEDIDO);
+
+  const estadosPermitidos = [ESTADOS_PEDIDO.ACTIVO, ESTADOS_PEDIDO.ENTRANTE, ESTADOS_PEDIDO.PENDIENTE];
+  const q = query(
+        colRef,
+        where(CAMPOS_PEDIDO.ESTADO, "in", estadosPermitidos),
+        where(CAMPOS_PEDIDO.USER_ID, "==", uid)
+    );
+
+  const snap = await getDocs(q);
+
+  return {
+    pedidoExistente: !snap.empty,
+  };
+};
+
 /* -----------------------------
    OFERTAS (subcolección)
    ----------------------------- */
