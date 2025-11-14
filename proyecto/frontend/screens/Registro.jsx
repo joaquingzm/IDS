@@ -20,6 +20,7 @@ export default function RegisterScreen() {
   const {navigation} = useNav();
   const [loading, setLoading]= useState(false);
   const { showAlert } = useAlert();
+  const [isAdult, setIsAdult] = useState(false);
  
   
 
@@ -78,49 +79,70 @@ try {
   }
 };
 
+return (
+  <ScrollView contentContainerStyle={styles.scroll}>
+    <View style={styles.container}>
+      <Text style={styles.title}>Crear cuenta</Text>
 
-  return (
-    <ScrollView contentContainerStyle={styles.scroll}>
-      <View style={styles.container}>
-        <Text style={styles.title}>Crear cuenta</Text>
+      <View style={styles.card}>
+        <Text style={styles.subtitle}>Completá tus datos para continuar</Text>
 
-        <View style={styles.card}>
-          <Text style={styles.subtitle}>Completá tus datos para continuar</Text>
+        <TextInput style={styles.input} placeholder="Nombre" placeholderTextColor={theme.colors.mutedForeground} value={nombre} onChangeText={setNombre} />
+        <TextInput style={styles.input} placeholder="Apellido" placeholderTextColor={theme.colors.mutedForeground} value={apellido} onChangeText={setApellido} />
+        <TextInput style={styles.input} placeholder="Correo electrónico" placeholderTextColor={theme.colors.mutedForeground} keyboardType="email-address" autoCapitalize="none" value={email} onChangeText={setEmail} />
+        <TextInput style={styles.input} placeholder="Contraseña" placeholderTextColor={theme.colors.mutedForeground} secureTextEntry value={password} onChangeText={setPassword} />
+        <TextInput style={styles.input} placeholder="DNI" placeholderTextColor={theme.colors.mutedForeground} keyboardType="numeric" value={dni} onChangeText={setDni} />
+        <TextInput style={styles.input} placeholder="Obra Social (opcional)" placeholderTextColor={theme.colors.mutedForeground} value={obraSocial} onChangeText={setObraSocial} />
+        <TextInput style={styles.input} placeholder="Numero de afiliado (opcional)" placeholderTextColor={theme.colors.mutedForeground} value={obraSocialNum} onChangeText={setObraSocialNum} />
+        <TextInput style={styles.input} placeholder="Dirección" placeholderTextColor={theme.colors.mutedForeground} value={direccion} onChangeText={setDireccion} />
 
-          <TextInput style={styles.input} placeholder="Nombre" placeholderTextColor={theme.colors.mutedForeground} value={nombre} onChangeText={setNombre} />
-          <TextInput style={styles.input} placeholder="Apellido" placeholderTextColor={theme.colors.mutedForeground} value={apellido} onChangeText={setApellido} />
-          <TextInput style={styles.input} placeholder="Correo electrónico" placeholderTextColor={theme.colors.mutedForeground} keyboardType="email-address" autoCapitalize="none" value={email} onChangeText={setEmail} />
-          <TextInput style={styles.input} placeholder="Contraseña" placeholderTextColor={theme.colors.mutedForeground} secureTextEntry value={password} onChangeText={setPassword} />
-          <TextInput style={styles.input} placeholder="DNI" placeholderTextColor={theme.colors.mutedForeground} keyboardType="numeric" value={dni} onChangeText={setDni} />
-          <TextInput style={styles.input} placeholder="Obra Social (opcional)" placeholderTextColor={theme.colors.mutedForeground} value={obraSocial} onChangeText={setObraSocial} />
-          <TextInput style={styles.input} placeholder="Numero Obra Social (opcional)" placeholderTextColor={theme.colors.mutedForeground} value={obraSocialNum} onChangeText={setObraSocialNum} />
-          <TextInput style={styles.input} placeholder="Dirección" placeholderTextColor={theme.colors.mutedForeground} value={direccion} onChangeText={setDireccion} />
-
-          <TouchableOpacity style={styles.button} onPress={handleRegister}>
-            <Text style={styles.buttonText}>Registrarse</Text>
+        {/* ✅ Checkbox de mayor de edad */}
+        <View style={styles.checkboxRow}>
+          <TouchableOpacity
+            style={[styles.checkboxBox, isAdult && styles.checkboxBoxChecked]}
+            onPress={() => setIsAdult(prev => !prev)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: isAdult }}
+            >
+            {isAdult && <Text style={styles.checkboxTick}>✓</Text>}
           </TouchableOpacity>
-
-          <Text style={styles.loginText}>
-            ¿Ya tenés cuenta?{" "}
-            <Text style={styles.linkText} onPress={() => navigation.navigate("Login")}>
-              Iniciá sesión
-            </Text>
-          </Text>
+          <Text style={styles.checkboxLabel}>Confirmo que soy mayor de edad</Text>
         </View>
-        <Modal
-          visible={loading}
-          transparent={true}
-          animationType="fade"
-          statusBarTranslucent={true}
+
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => {
+            if (!isAdult) {
+              showAlert("registro_error", { message: "Acceso restringido a menores de edad." });
+              return;
+            }
+            handleRegister(); // tu función actual de registro
+          }}
           >
-          <View style={styles.overlay}>
-          {/* 🔹 Spinner de carga */}
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-          </View>
-          </Modal>
+          <Text style={styles.buttonText}>Registrarse</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.loginText}>
+          ¿Ya tenés cuenta?{" "}
+          <Text style={styles.linkText} onPress={() => navigation.navigate("Login")}>
+            Iniciá sesión
+          </Text>
+        </Text>
       </View>
-    </ScrollView>
-  );
+
+      <Modal
+        visible={loading}
+        transparent={true}
+        animationType="fade"
+        statusBarTranslucent={true}
+      >
+        <View style={styles.overlay}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      </Modal>
+    </View>
+  </ScrollView>
+);
 }
 
 const styles = StyleSheet.create({
@@ -200,4 +222,36 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  checkboxRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginBottom: theme.spacing.md,
+  marginTop: theme.spacing.sm,
+},
+checkboxBox: {
+  width: 22,
+  height: 22,
+  borderRadius: 4,
+  borderWidth: 1.5,
+  borderColor: theme.colors.border,
+  justifyContent: "center",
+  alignItems: "center",
+  marginRight: theme.spacing.sm,
+  backgroundColor: "transparent",
+},
+checkboxBoxChecked: {
+  backgroundColor: theme.colors.primary,
+  borderColor: theme.colors.primary,
+},
+checkboxTick: {
+  color: theme.colors.primaryForeground,
+  fontSize: 16,
+  lineHeight: 16,
+  fontWeight: "700",
+},
+checkboxLabel: {
+  color: theme.colors.mutedForeground,
+  fontSize: theme.typography.fontSize.base,
+},
+
 });

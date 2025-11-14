@@ -167,6 +167,7 @@ export async function crearPedido(pedidoData) {
         [CAMPOS_PEDIDO.NOMBRE_USUARIO]: pedidoData.nombreUsuario || "",
         [CAMPOS_PEDIDO.APELLIDO_USUARIO]: pedidoData.apellidoUsuario || "",
         [CAMPOS_PEDIDO.OBRASOCIAL]: pedidoData.obraSocialUsuario || "",
+        [CAMPOS_PEDIDO.OBRASOCIAL_NUM]: pedidoData.obraSocialNumUsuario || "",
         [CAMPOS_PEDIDO.DIRECCION]: pedidoData.direccionUsuario || "",
         [CAMPOS_PEDIDO.IMAGEN]: pedidoData.imagen,
         [CAMPOS_PEDIDO.OCR]: pedidoData.resultadosOCR,

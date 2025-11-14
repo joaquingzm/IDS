@@ -88,6 +88,7 @@ export default function ProfileScreen({ navigation }) {
   const email = auth.currentUser?.email ?? getField(CAMPOS_USUARIO.EMAIL, 'email');
   const direccion = getField(CAMPOS_USUARIO.DIRECCION, 'direccion');
   const obraSocial = getField(CAMPOS_USUARIO.OBRASOCIAL, 'obraSocial');
+  const obraSocialNum = getField(CAMPOS_USUARIO.OBRASOCIAL_NUM, 'obraSocialNum');
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -173,6 +174,8 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Obra social</Text>
             <TextInput value={obraSocial} editable={false} style={styles.input} />
+            <Text style={styles.label}>Numero de afiliado</Text>
+            <TextInput value={obraSocialNum} editable={false} style={styles.input} />
           </View>
           <TouchableOpacity
             style={styles.outlineButton}

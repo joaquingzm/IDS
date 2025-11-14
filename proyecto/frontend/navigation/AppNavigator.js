@@ -68,7 +68,7 @@ function MainTabs() {
   const [estadoCarga, setEstadoCarga] = useState("");
   const navigation = useNavigation();
   const { showAlert } = useAlert();
-  const resultOCR = '';
+  let resultOCR = '';
 
   const handleCameraPress = async () => {
     setPhotoUri(null);
@@ -176,6 +176,7 @@ function MainTabs() {
         [CAMPOS_PEDIDO.NOMBRE_USUARIO]: usuario[CAMPOS_USUARIO.NOMBRE] || "",
         [CAMPOS_PEDIDO.APELLIDO_USUARIO]: usuario[CAMPOS_USUARIO.APELLIDO] || "",
         [CAMPOS_PEDIDO.OBRASOCIAL]: usuario[CAMPOS_USUARIO.OBRASOCIAL] || "",
+        [CAMPOS_PEDIDO.OBRASOCIAL_NUM]: usuario[CAMPOS_USUARIO.OBRASOCIAL_NUM] || "",
         [CAMPOS_PEDIDO.DIRECCION]: usuario[CAMPOS_USUARIO.DIRECCION] || "",
         [CAMPOS_PEDIDO.IMAGEN]: imageUrl,
         [CAMPOS_PEDIDO.OCR]: resultOCR || null,

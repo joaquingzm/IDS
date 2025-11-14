@@ -62,7 +62,7 @@ export default function LoginScreen({ navigation }) {
       if (!usuario) {
         // No existe el perfil en la colección de usuarios -> desloguear y avisar
         await auth.signOut();
-        showAlert("error_red", { message: "Email o contraseña incorrectos (sin perfil)" });
+        showAlert("error_red", { message: "Credenciales inválidas. Verifique sus datos e intente nuevamente." });
         setLoading(false);
         return;
       }
