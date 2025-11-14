@@ -28,8 +28,10 @@ export const CAMPOS_USUARIO = {
   APELLIDO: "apellido",
   FECHA_REGISTRO: "fechaRegistro",
   OBRASOCIAL: "obraSocial",
+  OBRASOCIAL_NUM: "obraSocialNum",
   DNI: "dni",
   DIRECCION: "direccion",
+  ROL: "rol",
 };
 
 
@@ -53,6 +55,7 @@ export const CAMPOS_PEDIDO = {
   NOMBRE_USUARIO: "nombreUsuario",
   APELLIDO_USUARIO: "apellidoUsuario",
   OBRASOCIAL: "obraSocialUsuario",
+  OBRASOCIAL_NUM: "obraSocialNumUsuario",
   DIRECCION: "direccionUsuario",
 
   // Info pedido

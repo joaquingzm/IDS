@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, FlatList, ActivityIndicator, StyleSheet, Text } from "react-native";
 import { theme } from "../styles/theme";
-import pedidoDisponibleCard from "../components/pedidoDisponibleCard";
+import PedidoDisponibleCard from "../components/PedidoDisponibleCard";
 import { listenPedidosPorEstado } from "../utils/firestoreService";
 import {
   ESTADOS_PEDIDO,
@@ -96,16 +96,15 @@ export default function PedidosDisponiblesScreen() {
           data={pedidos}
           keyExtractor={(item) => item.id || item.docId || JSON.stringify(item)}
           renderItem={({ item }) => (
-            <pedidoDisponibleCard
+            <PedidoDisponibleCard
               pedido={item}
               farmacia={
-                farmacia || {
-                  [CAMPOS_FARMACIA.NOMBRE]: "Farmacia desconocida",
-                }
+                farmacia || { [CAMPOS_FARMACIA.NOMBRE]: "Farmacia desconocida" }
               }
-              monto={item.monto || ""}
-              medicamento={item.medicamento || []}
-              tiempoEspera={item.tiempoEspera || null}
+              monto={item.monto ?? null}
+              medicamento={item.medicamento ?? []}
+              tiempoEspera={item.tiempoEspera ?? null}
+              ocr={item.ocr ?? null}
             />
           )}
           showsVerticalScrollIndicator={false}

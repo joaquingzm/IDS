@@ -1,8 +1,18 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Image, TextInput, Pressable, Modal } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  TextInput,
+  Pressable,
+  Modal,
+} from "react-native";
 import { db } from "../firebase";
-import { doc, setDoc, deleteDoc, getDoc , serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, deleteDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { theme } from "../styles/theme";
+
 import {
   COLECCION_USUARIOS,
   CAMPOS_USUARIO,
@@ -15,28 +25,62 @@ import {
   ESTADOS_PEDIDO,
   ESTADOS_OFERTA,
 } from "../dbConfig";
-import { updatePedido , crearOferta } from "../utils/firestoreService";
+
+import { updatePedido, crearOferta } from "../utils/firestoreService";
 import { auth } from "../firebase";
 
-export default function pedidoDisponibleCard({ pedido , farmacia , tiempoEspera }) {
-  const [mostrarFormulario, setMostrarFormulario] = useState(false);
-  const [medicamentos, setMedicamentos] = useState("");
-  const [monto, setMonto] = useState("");
-  const [modalVisible, setModalVisible] = useState(false);
+export default function PedidoDisponibleCard({ pedido, farmacia, tiempoEspera }) {
   const farmaciaId = auth.currentUser?.uid;
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [mostrarFormulario, setMostrarFormulario] = useState(false);
+   if (!pedido) {
+    console.warn("⚠️ PedidoDisponibleCard recibió pedido = undefined");
+    return null;
+  }
+
+  // --- OCR PARSING ---
+  const textOCR =
+  pedido?.[CAMPOS_PEDIDO.OCR] ??
+  pedido?.ocr ??
+  pedido?.resultadosOCR ??
+  pedido?.textoOCR ??
+  [];
+
+  const initialItems = Array.isArray(textOCR)
+  ? textOCR.map((m) => ({ medicamento: String(m), monto: "" }))
+  : typeof textOCR === "object" && textOCR !== null
+  ? Object.values(textOCR).map((m) => ({ medicamento: String(m), monto: "" }))
+  : [];
+
+  const [items, setItems] = useState(initialItems);
+
+  // Añadir ítem manualmente
+  const agregarItem = () => {
+    setItems([...items, { medicamento: "", monto: "" }]);
+  };
+
+  // Borrar ítem
+  const borrarItem = (index) => {
+    const copia = items.filter((_, i) => i !== index);
+    setItems(copia);
+  };
 
   const handleAceptarPress = () => {
     setMostrarFormulario(true);
   };
 
+  // CONFIRMAR
   const handleConfirmarAceptar = async () => {
-    if (!medicamentos.trim() || !monto.trim()) {
-      alert("Por favor, completa ambos campos");
+    if (items.length === 0) {
+      alert("Debe haber al menos un medicamento.");
       return;
     }
 
-    try {
+    const medicamentosList = items.map((i) => i.medicamento.trim());
+    const montosList = items.map((i) => Number(i.monto) || 0);
 
+    try {
       await updatePedido(pedido.id, {
         [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.PENDIENTE,
         [CAMPOS_PEDIDO.FARMACIA_ASIGNADA_ID]: farmaciaId,
@@ -44,33 +88,24 @@ export default function pedidoDisponibleCard({ pedido , farmacia , tiempoEspera 
 
       await crearOferta(pedido.id, {
         [CAMPOS_OFERTA.FARMACIA_ID]: farmaciaId || "",
-        [CAMPOS_OFERTA.NOMBRE_FARMACIA]: farmacia[CAMPOS_FARMACIA.NOMBRE] || "",
-        [CAMPOS_OFERTA.MONTO]: monto || 0,
-        [CAMPOS_OFERTA.MEDICAMENTO]: medicamentos || [],
+        [CAMPOS_OFERTA.NOMBRE_FARMACIA]: farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "",
+        [CAMPOS_OFERTA.MEDICAMENTO]: medicamentosList,
+        [CAMPOS_OFERTA.MONTO]: montosList,
         [CAMPOS_OFERTA.TIEMPO_ESPERA]: tiempoEspera || null,
         [CAMPOS_OFERTA.FECHA_OFERTA]: serverTimestamp(),
-        [CAMPOS_OFERTA.ESTADO]: ESTADOS_OFERTA?.PENDIENTE || "pendiente",
+        [CAMPOS_OFERTA.ESTADO]: ESTADOS_OFERTA.PENDIENTE,
       });
 
-
-
-      console.log(" Pedido aceptado y movido correctamente a PedidosAceptados");
       alert("Pedido aceptado con éxito");
-
-      // Resetear el estado
       setMostrarFormulario(false);
-      setMedicamentos("");
-      setMonto("");
     } catch (error) {
       console.error("Error al aceptar pedido:", error);
-      alert(`Error al aceptar el pedido: ${error.message}`);
+      alert("Error al aceptar el pedido.");
     }
   };
 
   const handleCancelarAceptar = () => {
     setMostrarFormulario(false);
-    setMedicamentos("");
-    setMonto("");
   };
 
   const handleRechazar = async () => {
@@ -78,27 +113,25 @@ export default function pedidoDisponibleCard({ pedido , farmacia , tiempoEspera 
       await updatePedido(pedido.id, {
         [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.RECHAZADO,
       });
-      console.log(" Pedido rechazado y eliminado");
-      alert("Pedido rechazado y eliminado");
+      alert("Pedido rechazado.");
     } catch (error) {
-      console.error("Error al rechazar pedido:", error);
+      console.error("Error al rechazar:", error);
       alert("Error al rechazar el pedido.");
     }
   };
 
-
+  // DATOS DEL PEDIDO
   const nombre = pedido[CAMPOS_PEDIDO.NOMBRE_USUARIO] || "No especificado";
   const apellido = pedido[CAMPOS_PEDIDO.APELLIDO_USUARIO] || "No especificado";
   const direccion = pedido[CAMPOS_PEDIDO.DIRECCION] || "No especificado";
   const obraSocial = pedido[CAMPOS_PEDIDO.OBRASOCIAL] || "No especificado";
+  const obraSocialNum = pedido[CAMPOS_PEDIDO.OBRASOCIAL_NUM] || "No especificado";
   const fechaPedido = pedido[CAMPOS_PEDIDO.FECHA_PEDIDO]?.toDate?.() || null;
   const imagen = pedido[CAMPOS_PEDIDO.IMAGEN];
-  const textOCR = pedido[CAMPOS_PEDIDO.OCR];
-
 
   return (
     <View style={styles.card}>
-      {/* Imagen + texto superior */}
+      {/* IMAGEN */}
       <View style={styles.imageRow}>
         <TouchableOpacity onPress={() => setModalVisible(true)}>
           {imagen ? (
@@ -112,103 +145,102 @@ export default function pedidoDisponibleCard({ pedido , farmacia , tiempoEspera 
 
         <View style={styles.extraTextContainer}>
           <Text style={styles.extraText}>🕓 Pendiente de confirmación</Text>
-          <Text style={styles.extraSubText}>Farmacia Central</Text>
+          <Text style={styles.extraSubText}>
+            {farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "Farmacia desconocida"}
+          </Text>
         </View>
       </View>
 
-      {/* Info básica */}
+      {/* INFO */}
       <View style={styles.infoContainer}>
-        <Text style={styles.title}>
-          Pedido de {nombre} {apellido}
-        </Text>
-        {direccion && <Text style={styles.text}>Dirección: {direccion}</Text>}
-        {obraSocial && <Text style={styles.text}>Obra social: {obraSocial}</Text>}
-        {/*MODIFICAR*/}
-        {textOCR && <Text style={styles.text}>Medicamento detectado: {Object.values(textOCR).join(" , ")}</Text>}
+        <Text style={styles.title}>Pedido de {nombre} {apellido}</Text>
+        <Text style={styles.text}>Dirección: {direccion}</Text>
+        <Text style={styles.text}>Obra social: {obraSocial}</Text>
+        <Text style={styles.text}>Nro Afiliado: {obraSocialNum}</Text>
+
         {fechaPedido && (
           <Text style={styles.text}>
-            Fecha de llegada: {fechaPedido.toLocaleDateString()}{" "}
-            {fechaPedido.toLocaleTimeString()}
+            Fecha llegada: {fechaPedido.toLocaleDateString()} {fechaPedido.toLocaleTimeString()}
           </Text>
         )}
       </View>
 
-      {/* Formulario o botones */}
+      {/* FORMULARIO COMPLETO */}
       {mostrarFormulario ? (
         <View style={styles.formularioContainer}>
-          <Text style={styles.formularioTitulo}>Completar información del pedido</Text>
+          <Text style={styles.formularioTitulo}>Medicamentos y Montos</Text>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Medicamentos</Text>
-            <TextInput
-              style={styles.textInput}
-              value={medicamentos}
-              onChangeText={setMedicamentos}
-              placeholder={"Sugerencia " + Object.values(textOCR).join(", ")}
-              multiline
-              numberOfLines={3}
-            />
-          </View>
+          {items.map((item, index) => (
+            <View key={index} style={styles.itemRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>Medicamento</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={item.medicamento}
+                  onChangeText={(txt) => {
+                    const copia = [...items];
+                    copia[index].medicamento = txt;
+                    setItems(copia);
+                  }}
+                />
+              </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Monto</Text>
-            <View style={styles.montoContainer}>
-              <Text style={styles.pesoSign}>$</Text>
-              <TextInput
-                style={[styles.textInput, styles.montoInput]}
-                value={monto}
-                onChangeText={setMonto}
-                placeholder="0.00"
-                keyboardType="decimal-pad"
-              />
+              <View style={{ flex: 0.7, marginLeft: 10 }}>
+                <Text style={styles.inputLabel}>Monto</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={item.monto}
+                  placeholder="$"
+                  keyboardType="numeric"
+                  onChangeText={(txt) => {
+                    const copia = [...items];
+                    copia[index].monto = txt;
+                    setItems(copia);
+                  }}
+                />
+              </View>
+
+              {/* BOTÓN - */}
+              <TouchableOpacity
+                style={styles.botonMenos}
+                onPress={() => borrarItem(index)}
+              >
+                <Text style={styles.botonTexto}>–</Text>
+              </TouchableOpacity>
             </View>
-          </View>
+          ))}
+
+          {/* BOTÓN + */}
+          <TouchableOpacity style={styles.botonMas} onPress={agregarItem}>
+            <Text style={styles.botonTexto}>+</Text>
+          </TouchableOpacity>
 
           <View style={styles.formularioActions}>
-            <TouchableOpacity
-              style={[styles.button, styles.confirmar]}
-              onPress={handleConfirmarAceptar}
-            >
+            <TouchableOpacity style={[styles.button, styles.confirmar]} onPress={handleConfirmarAceptar}>
               <Text style={styles.buttonText}>Confirmar</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.button, styles.cancelar]}
-              onPress={handleCancelarAceptar}
-            >
+            <TouchableOpacity style={[styles.button, styles.cancelar]} onPress={handleCancelarAceptar}>
               <Text style={styles.buttonText}>Cancelar</Text>
             </TouchableOpacity>
           </View>
         </View>
       ) : (
+        // Botones aceptar/rechazar
         <View style={styles.actionsContainer}>
-          <TouchableOpacity
-            style={[styles.button, styles.aceptar]}
-            onPress={handleAceptarPress}
-          >
+          <TouchableOpacity style={[styles.button, styles.aceptar]} onPress={handleAceptarPress}>
             <Text style={styles.buttonText}>Aceptar</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.button, styles.rechazar]}
-            onPress={handleRechazar}
-          >
+          <TouchableOpacity style={[styles.button, styles.rechazar]} onPress={handleRechazar}>
             <Text style={styles.buttonText}>Rechazar</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Modal con imagen ampliada */}
-      <Modal
-        visible={modalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setModalVisible(false)}
-        >
+      {/* MODAL */}
+      <Modal visible={modalVisible} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
           <Image source={{ uri: imagen }} style={styles.fullImage} resizeMode="contain" />
         </Pressable>
       </Modal>
@@ -216,7 +248,7 @@ export default function pedidoDisponibleCard({ pedido , farmacia , tiempoEspera 
   );
 }
 
-// Estilos
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: "#fff",
@@ -224,10 +256,6 @@ const styles = StyleSheet.create({
     padding: 16,
     marginVertical: 8,
     marginHorizontal: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
     elevation: 3,
   },
   imageRow: {
@@ -244,90 +272,61 @@ const styles = StyleSheet.create({
   placeholderImage: {
     width: 120,
     height: 120,
-    borderRadius: 12,
     backgroundColor: "#ddd",
-    alignItems: "center",
+    borderRadius: 12,
     justifyContent: "center",
+    alignItems: "center",
   },
-  placeholderText: {
-    color: "#666",
-  },
-  extraTextContainer: {
-    flex: 1,
-  },
-  extraText: {
-    color: "#222",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  extraSubText: {
-    color: "#555",
-    fontSize: 14,
-    marginTop: 4,
-  },
-  infoContainer: {
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
-    marginBottom: 6,
-  },
-  text: {
-    fontSize: 14,
-    color: "#444",
-    marginBottom: 4,
-  },
-  actionsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
+  placeholderText: { color: "#555" },
+  extraTextContainer: { flex: 1 },
+  extraText: { fontSize: 16, fontWeight: "bold" },
+  extraSubText: { marginTop: 4, fontSize: 14, color: "#777" },
+  infoContainer: { marginBottom: 12 },
+  title: { fontSize: 18, fontWeight: "bold" },
+  text: { marginTop: 4, fontSize: 14 },
+
   formularioContainer: {
     backgroundColor: "#f5f5f5",
-    borderRadius: 12,
     padding: 16,
-    marginTop: 8,
+    borderRadius: 12,
+    marginTop: 10,
   },
-  formularioTitulo: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-    marginBottom: 16,
-    textAlign: "center",
+  formularioTitulo: { fontSize: 16, fontWeight: "bold", textAlign: "center", marginBottom: 16 },
+
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
   },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#000",
-    marginBottom: 8,
-  },
+
   textInput: {
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#ccc",
+    padding: 10,
     borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    color: "#000",
   },
-  montoContainer: {
-    flexDirection: "row",
+  inputLabel: { fontSize: 13, marginBottom: 4 },
+
+  botonMas: {
+    backgroundColor: "#ff8f05ff",
+    borderRadius: 8,
+    paddingVertical: 8,
+    marginVertical: 6,
     alignItems: "center",
   },
-  pesoSign: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#000",
-    marginRight: 8,
+
+  botonMenos: {
+    backgroundColor: "#d9534f",
+    marginLeft: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
   },
-  montoInput: {
-    flex: 1,
-  },
-  formularioActions: {
+
+  botonTexto: { fontSize: 20, color: "#fff" },
+
+  actionsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
@@ -338,22 +337,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginHorizontal: 6,
   },
-  aceptar: {
-    backgroundColor: "#ff8f05ff",
-  },
-  rechazar: {
-    backgroundColor: "#9E9E9E",
-  },
-  confirmar: {
-    backgroundColor: "#ff8f05ff",
-  },
-  cancelar: {
-    backgroundColor: "#9E9E9E",
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
+  aceptar: { backgroundColor: "#ff8f05ff" },
+  rechazar: { backgroundColor: "#999" },
+  confirmar: { backgroundColor: "#ff8f05ff" },
+  cancelar: { backgroundColor: "#999" },
+
+  buttonText: { color: "#fff", fontWeight: "bold" },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.9)",

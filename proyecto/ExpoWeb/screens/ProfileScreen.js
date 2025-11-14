@@ -1,3 +1,5 @@
+// ProfileScreen.js
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, TextInput, SafeAreaView, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
 import { theme } from '../styles/theme';
@@ -17,7 +19,7 @@ export default function ProfileScreen() {
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  // 🔹 Cargar datos del usuario desde Firestore
+  // Cargar datos del usuario 
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -87,8 +89,9 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Nombre</Text>
+
             <TextInput
-              value={userData?.nombre || ""}
+              value={userData?.nombre_farmacia || ""}
               editable={false}
               style={styles.input}
             />
@@ -96,8 +99,9 @@ export default function ProfileScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Dirección</Text>
+
             <TextInput
-              value={userData?.direccion || ""}
+              value={userData?.Direccion || ""}
               editable={false}
               style={styles.input}
             />
@@ -117,8 +121,10 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Nro de teléfono</Text>
+
+        
             <TextInput
-              value={userData?.telefono || ""}
+              value={userData?.["Telefono comercial"] || ""}
               editable={false}
               style={styles.input}
             />
@@ -167,13 +173,8 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  scrollContainer: {
-    flex: 1,
-  },
+  safeArea: { flex: 1, backgroundColor: theme.colors.background },
+  scrollContainer: { flex: 1 },
   scrollContent: {
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.lg,
@@ -203,14 +204,8 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-  inputGroup: {
-    marginBottom: theme.spacing.md,
-  },
-  label: {
-    fontSize: 14,
-    color: theme.colors.mutedForeground,
-    marginBottom: theme.spacing.xs,
-  },
+  inputGroup: { marginBottom: theme.spacing.md },
+  label: { fontSize: 14, color: theme.colors.mutedForeground, marginBottom: theme.spacing.xs },
   input: {
     backgroundColor: theme.colors.inputBackground,
     padding: theme.spacing.md,
