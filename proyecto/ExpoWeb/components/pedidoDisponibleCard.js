@@ -311,8 +311,8 @@ const styles = StyleSheet.create({
   botonMas: {
     backgroundColor: "#ff8f05ff",
     borderRadius: 8,
-    paddingVertical: 8,
-    marginVertical: 6,
+    paddingVertical: 10,
+    marginVertical: 10,
     alignItems: "center",
   },
 
@@ -320,8 +320,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#d9534f",
     marginLeft: 6,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 1,
     borderRadius: 6,
+    marginVertical: 4,
+    
   },
 
   botonTexto: { fontSize: 20, color: "#fff" },
@@ -336,13 +338,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     marginHorizontal: 6,
+    paddingVertical: 8,
+    marginVertical: 8,
   },
   aceptar: { backgroundColor: "#ff8f05ff" },
   rechazar: { backgroundColor: "#999" },
   confirmar: { backgroundColor: "#ff8f05ff" },
   cancelar: { backgroundColor: "#999" },
 
-  buttonText: { color: "#fff", fontWeight: "bold" },
+  buttonText: { color: "#fff",
+     fontWeight: "bold" },
 
   modalOverlay: {
     flex: 1,
