@@ -9,6 +9,7 @@ import * as firestoreService from "../utils/firestoreService";
 export default function HistorialScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [farmacia, setFarmacia] = useState(null);
 
   useEffect(() => {
     const currentUser = auth.currentUser;

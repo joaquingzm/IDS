@@ -228,7 +228,7 @@ export async function crearOferta(pedidoId, pedidoData) {
 
     const payload = {
         [CAMPOS_OFERTA.FARMACIA_ID]: pedidoData.farmaciaId || "",
-        [CAMPOS_OFERTA.NOMBRE_FARMACIA]: pedidoData.nombreFarmacia || "",
+        [CAMPOS_OFERTA.NOMBRE_FARMACIA]: pedidoData.nombreDeFarmacia || "",
         [CAMPOS_OFERTA.MONTO]: pedidoData.monto || 0,
         [CAMPOS_OFERTA.MEDICAMENTO]: pedidoData.medicamento || [],
         [CAMPOS_OFERTA.TIEMPO_ESPERA]: pedidoData.tiempoEspera || null,
