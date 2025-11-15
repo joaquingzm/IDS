@@ -47,7 +47,7 @@ oferta_success: {
 pedido_rechazado_success: {
   type: "toast",
   preset: "done",
-  title: "Pedido recahzado ",
+  title: "Pedido rechazado ",
   message: "No ofertaste por el pedido.",
 },
 

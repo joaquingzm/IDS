@@ -78,6 +78,7 @@ export const CAMPOS_PEDIDO = {
   FECHA_COMPLETADO: "fechaCompletado",
   FECHA_CANCELACION: "fechaCancelacion",
   CANCELADO_POR: "canceladoPor",
+   FARMACIAS_NO_OFERTARON: "farmaciasNoOfertaronId",
 
   // Ofertas
   OFERTAS_IDS: "ofertasId",
@@ -96,7 +97,7 @@ export const CAMPOS_OFERTA = {
   MEDICAMENTO: "medicamento",
   FECHA_OFERTA: "fechaOferta",
   TIEMPO_ESPERA: "tiempoEspera",
-  FARMACIAS_NO_OFERTARON: "farmaciasNoOfertaronId",
+
 
   // Estado oferta
   ESTADO: "estado", // pendiente, aceptada, rechazada

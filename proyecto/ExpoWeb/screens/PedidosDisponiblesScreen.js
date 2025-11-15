@@ -6,6 +6,7 @@ import { listenPedidosPorEstado } from "../utils/firestoreService";
 import {
   ESTADOS_PEDIDO,
   CAMPOS_FARMACIA,
+  CAMPOS_PEDIDO,
 } from "../dbConfig"
 import { auth } from "../firebase";
 import { getFarmaciaById } from "../utils/firestoreService";
@@ -69,23 +70,27 @@ export default function PedidosDisponiblesScreen() {
   }, []);
 
   // Listener de pedidos por estado
-  useEffect(() => {
-    const unsub = listenPedidosPorEstado(ESTADOS_PEDIDO.ENTRANTE, (items) => {
-      setPedidos(items);
-      setLoading(false);
-    });
-    return () => {
-      if (typeof unsub === "function") unsub();
-    };
-  }, []);
+useEffect(() => {
+  const unsub = listenPedidosPorEstado(
+    ESTADOS_PEDIDO.ENTRANTE,
+    (items) => {
+      setLoading(true);
 
-  if (loading) {
-    return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
-  }
+      const pedidosFiltrados = items.filter((pedido) => {
+        const rechazadas = pedido[CAMPOS_PEDIDO.FARMACIAS_NO_OFERTARON] || [];
+        return !rechazadas.includes(farmacia?.id);
+      });
+
+      setPedidos(pedidosFiltrados);
+      setLoading(false);
+    }
+  );
+
+  return () => {
+    if (typeof unsub === "function") unsub();
+  };
+}, [farmacia]);
+
 
   return (
     <View style={styles.container}>

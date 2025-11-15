@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { db } from "../firebase";
-import { doc, setDoc, deleteDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, deleteDoc, getDoc, serverTimestamp, arrayUnion } from "firebase/firestore";
 import { theme } from "../styles/theme";
 import { useAlert } from "../context/AlertContext";
 
@@ -157,17 +157,23 @@ if (!tiempoEsperaLocal || isNaN(Number(tiempoEsperaLocal)) || Number(tiempoEsper
     setMostrarFormulario(false);
   };
 
-  const handleRechazar = async () => {
-    try {
-      await updatePedido(pedido.id, {
-        [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.RECHAZADO,
-      });
-      showAlert("pedido_rechazado_success")
-    } catch (error) {
-      console.error("Error al rechazar:", error);
-      showAlert("error", {message:"Error al rechazar el pedido." })
-    }
-  };
+const handleRechazar = async () => {
+  try {
+    // 1️⃣ Buscamos si ESTA farmacia ya tiene oferta creada
+  
+
+    // 3️⃣ SI EXISTE: la actualizamos
+    await updatePedido(pedido.id, {
+      [CAMPOS_PEDIDO.FARMACIAS_NO_OFERTARON]: arrayUnion(farmaciaId),
+    });
+
+    showAlert("pedido_rechazado_success");
+
+  } catch (error) {
+    console.error("Error al rechazar:", error);
+    showAlert("error", { message: "Error al rechazar el pedido." });
+  }
+};
 
   // DATOS DEL PEDIDO
   const nombre = pedido[CAMPOS_PEDIDO.NOMBRE_USUARIO] || "No especificado";
