@@ -277,7 +277,7 @@ if (!tiempoEsperaLocal || isNaN(Number(tiempoEsperaLocal)) || Number(tiempoEsper
 
           <View style={styles.formularioActions}>
             <TouchableOpacity style={[styles.button, styles.confirmar]} onPress={handleConfirmarAceptar}>
-              <Text style={styles.buttonText}>Confirmar</Text>
+              <Text style={styles.buttonText}>Enviar oferta</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={[styles.button, styles.cancelar]} onPress={handleCancelarAceptar}>
@@ -293,7 +293,7 @@ if (!tiempoEsperaLocal || isNaN(Number(tiempoEsperaLocal)) || Number(tiempoEsper
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.button, styles.rechazar]} onPress={handleRechazar}>
-            <Text style={styles.buttonText}>Rechazar</Text>
+            <Text style={styles.buttonText}>No ofertar</Text>
           </TouchableOpacity>
         </View>
       )}

@@ -48,7 +48,7 @@ pedido_rechazado_success: {
   type: "toast",
   preset: "done",
   title: "Pedido recahzado ",
-  message: "El pedido fue rechazado exitosamente.",
+  message: "No ofertaste por el pedido.",
 },
 
   // Podemos hacer alertas con botones de esta manera

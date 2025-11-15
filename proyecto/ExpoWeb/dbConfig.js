@@ -5,6 +5,8 @@
 export const ESTADOS_PEDIDO = {
   ENTRANTE: "entrante",
   PENDIENTE: "pendiente",
+  EN_PREPARACION: "en_preparacion",
+  EN_CAMINO: "en_camino",
   ACTIVO: "activo",
   REALIZADO: "realizado",
   CONFIRMACION: "confirmacion",
@@ -68,6 +70,13 @@ export const CAMPOS_PEDIDO = {
   ESTADO: "estado", // entrante, pendiente, activo, realizado, rechazado
   OFERTA_ACEPTADA_ID: "ofertaAceptadaId",
   FARMACIA_ASIGNADA_ID: "farmaciaAsignadaID",
+  FECHA_ACEPTACION: "fechaAceptacion",
+  FECHA_PREPARACION: "fechaPreparacion",
+  FECHA_EN_CAMINO: "fechaEnCamino",
+  FECHA_ENTREGADO: "fechaEntregado",
+  FECHA_COMPLETADO: "fechaCompletado",
+  FECHA_CANCELACION: "fechaCancelacion",
+  CANCELADO_POR: "canceladoPor",
 
   // Ofertas
   OFERTAS_IDS: "ofertasId",
@@ -86,6 +95,7 @@ export const CAMPOS_OFERTA = {
   MEDICAMENTO: "medicamento",
   FECHA_OFERTA: "fechaOferta",
   TIEMPO_ESPERA: "tiempoEspera",
+  FARMACIAS_NO_OFERTARON: "farmaciasNoOfertaronId",
 
   // Estado oferta
   ESTADO: "estado", // pendiente, aceptada, rechazada
