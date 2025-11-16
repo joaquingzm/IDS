@@ -230,6 +230,53 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
     }
   };
 
+  // 2. FUNCIÓN PARA CANCELAR EL PEDIDO (CORREGIDA)
+  const cancelarPedido = async () => {
+    if (procesando) return;
+    if (!pedido?.id) return;
+
+    const confirmar =
+      Platform.OS === "web"
+        ? window.confirm("¿Estás seguro de que querés cancelar este pedido?")
+        : await new Promise((resolve) =>
+            Alert.alert(
+              "Cancelar Pedido",
+              "¿Estás seguro de que querés cancelar este pedido? Esta acción no se puede deshacer.",
+              [
+                { text: "No, mantener", style: "cancel", onPress: () => resolve(false) },
+                { text: "Sí, cancelar", style: "destructive", onPress: () => resolve(true) },
+              ],
+              { cancelable: true }
+            )
+          );
+
+    if (!confirmar) return;
+
+    setProcesando(true);
+    try {
+      const pedidoRef = doc(db, COLECCION_PEDIDO, pedido.id);
+      
+      // Aplicamos TUS REGLAS DE NEGOCIO:
+      await updateDoc(pedidoRef, {
+        [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.RECHAZADO,
+        [CAMPOS_PEDIDO.FECHA_CANCELACION]: new Date(), // <-- Campo requerido
+        [CAMPOS_PEDIDO.CANCELADO_POR]: "cliente", // <-- Campo requerido
+      });
+      
+      setEstado(ESTADOS_PEDIDO.RECHAZADO);
+      
+      // (La card desaparecerá sola en OfertsScreen gracias al listener)
+
+    } catch (error) {
+      // SI SEGUÍS VIENDO EL ALERT DE "ERROR", EL PROBLEMA SON
+      // TUS REGLAS DE SEGURIDAD DE FIRESTORE (PERMISOS)
+      console.error("Error cancelando pedido:", error);
+      Alert.alert("Error", "No se pudo cancelar el pedido. Revisa la consola.");
+    } finally {
+      setProcesando(false);
+    }
+  };
+
   // --- Preparación de filas de medicamentos para mostrar en ACTIVO ---
   const medicamentosList = Array.isArray(oferta?.[CAMPOS_OFERTA.MEDICAMENTO])
     ? oferta[CAMPOS_OFERTA.MEDICAMENTO]
@@ -259,6 +306,13 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
   const total = useMemo(() => rows.reduce((acc, r) => acc + (Number(r.montoNum) || 0), 0), [rows]);
 
   const ofertasCount = Array.isArray(ofertas) ? ofertas.length : 0;
+  // 3. DEFINIMOS SI EL BOTÓN DE CANCELAR DEBE MOSTRARSE
+  const puedeCancelar = ![
+    ESTADOS_PEDIDO.EN_CAMINO,
+    ESTADOS_PEDIDO.REALIZADO, // Asumo que REALIZADO es el estado final (tu HU decía "completado")
+    ESTADOS_PEDIDO.CANCELADO, // Si ya está cancelado, no se puede cancelar
+    ESTADOS_PEDIDO.CONFIRMACION // Si está esperando confirmación, ya no se puede cancelar
+  ].includes(estado);
 
   return (
     <View style={styles.card}>
@@ -460,7 +514,16 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
           </>
         )}
       </View>
-
+      {/* 4. MOSTRAMOS EL BOTÓN DE CANCELAR SI 'puedeCancelar' ES TRUE */}
+      {puedeCancelar && (
+        <TouchableOpacity
+          style={[styles.cancelBtn, procesando && { opacity: 0.7 }]}
+          onPress={cancelarPedido}
+          disabled={procesando}
+        >
+          <Text style={styles.cancelText}>Cancelar Pedido</Text>
+        </TouchableOpacity>
+      )}
       <Modal
         visible={modalVisible}
         transparent={true}
@@ -548,6 +611,21 @@ const styles = StyleSheet.create({
   confirmText: {
     color: "#000000ff",
     fontWeight: "700",
+  },
+  cancelBtn: {
+    marginTop: theme.spacing.sm,
+    backgroundColor: 'transparent',
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.destructive, // Borde rojo
+    alignItems: "center",
+  },
+  cancelText: {
+    color: theme.colors.destructive, // Texto rojo
+    fontWeight: "700",
+    fontSize: 16,
   },
   ofertasNumero: {
     fontWeight: "bold",
