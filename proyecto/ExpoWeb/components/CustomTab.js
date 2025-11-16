@@ -2,12 +2,18 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { theme } from "../styles/theme";
 import { Feather as Icon } from "@expo/vector-icons";
+import useContadoresPedidos from "../hooks/useContadoresPedidos";
+import { auth } from "../firebase";
 
 export default function CustomSidebar({ activeTab, setActiveTab }) {
-  return (
+   const farmaciaId = auth.currentUser?.uid;
+
+  const { pendientes, activos } = useContadoresPedidos(farmaciaId);
+
+ return (
     <View style={styles.wrapper}>
       <View style={styles.container}>
-               {[
+        {[
           { key: "Pedidos Disponibles", label: "Pedidos Disponibles" },
           { key: "Ofertas Enviadas", label: "Ofertas Enviadas" },
           { key: "Pedidos en curso", label: "Pedidos en curso" },
@@ -26,24 +32,24 @@ export default function CustomSidebar({ activeTab, setActiveTab }) {
           </TouchableOpacity>
         ))}
 
-          <View style={styles.statsCard}>
+        <View style={styles.statsCard}>
           <View style={styles.statsRow}>
             <Icon name="clock" size={26} color={theme.colors.destructiveForeground} />
             <Text style={styles.statsTitle}>Pedidos Disponibles:</Text>
           </View>
-          <Text style={styles.statsValue}>5</Text>
+          <Text style={styles.statsValue}>{pendientes}</Text>
         </View>
 
+        
         <View style={styles.statsCard}>
           <View style={styles.statsRow}>
             <Icon name="package" size={26} color={theme.colors.destructiveForeground} />
             <Text style={styles.statsTitle}>Pedidos Activos:</Text>
           </View>
-          <Text style={styles.statsValue}>24</Text>
+          <Text style={styles.statsValue}>{activos}</Text>
         </View>
       </View>
 
-  
       <View style={styles.blackBar} />
     </View>
   );

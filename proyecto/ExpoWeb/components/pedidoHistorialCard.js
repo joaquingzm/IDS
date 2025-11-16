@@ -1,9 +1,9 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../styles/theme";
-import { CAMPOS_USUARIO, CAMPOS_OFERTA, CAMPOS_PEDIDO } from "../dbConfig";
+import { CAMPOS_OFERTA, CAMPOS_PEDIDO } from "../dbConfig";
 
-export default function HistorialCard({ pedido, oferta}) {
+export default function HistorialCard({ pedido, oferta }) {
   if (!pedido) {
     return (
       <View style={styles.card}>
@@ -12,33 +12,77 @@ export default function HistorialCard({ pedido, oferta}) {
     );
   }
 
-  // Protección si oferta/usuario faltan
   const nombreUsuario = pedido?.[CAMPOS_PEDIDO.NOMBRE_USUARIO] ?? "Desconocido";
   const apellidoUsuario = pedido?.[CAMPOS_PEDIDO.APELLIDO_USUARIO] ?? "";
   const direccion = pedido?.[CAMPOS_PEDIDO.DIRECCION] ?? "No disponible";
   const obraSocial = pedido?.[CAMPOS_PEDIDO.OBRASOCIAL] ?? "No informado";
+  const NumAfiliado = pedido?.[CAMPOS_PEDIDO.OBRASOCIAL_NUM] ?? "No informado";
 
-  // Manejo seguro de fecha (Firestore Timestamp o {seconds, nanoseconds})
+  // Fecha segura
   const fechaRaw = oferta?.[CAMPOS_OFERTA.FECHA_OFERTA];
   let fechaTexto = "Sin fecha";
   if (fechaRaw) {
     if (typeof fechaRaw.toDate === "function") {
-      // Firestore Timestamp
       fechaTexto = fechaRaw.toDate().toLocaleString();
     } else if (fechaRaw.seconds != null) {
-      // Objeto plain { seconds, nanoseconds }
       fechaTexto = new Date(fechaRaw.seconds * 1000).toLocaleString();
-    } else {
-      fechaTexto = String(fechaRaw);
     }
   }
 
-  // Medicamentos puede ser array o string
-  const medicamentosRaw = oferta?.[CAMPOS_OFERTA.MEDICAMENTO];
-  const medicamentos =
-    Array.isArray(medicamentosRaw) ? medicamentosRaw.join(", ") : String(medicamentosRaw ?? "No informado");
+  /** ----------------------------------------
+   * Copiado de CardPedidoPendiente
+   ---------------------------------------- */
+  const parseMonto = (value) => {
+    if (value == null || value === "") return 0;
+    if (typeof value === "number") return value;
+    const s = String(value).trim();
+    if (s === "") return 0;
 
-  const monto = oferta?.[CAMPOS_OFERTA.MONTO] ?? "No informado";
+    if (s.includes(",") && s.includes(".")) {
+      return Number(s.replace(/\./g, "").replace(",", ".")) || 0;
+    }
+    if (s.includes(",") && !s.includes(".")) {
+      return Number(s.replace(",", ".")) || 0;
+    }
+    if (s.includes(" ")) {
+      return Number(s.replace(/\s/g, "")) || 0;
+    }
+    return Number(s) || 0;
+  };
+
+  const formatCurrency = (value) => {
+    const n = Number(value) || 0;
+    return new Intl.NumberFormat("es-AR", {
+      style: "currency",
+      currency: "ARS",
+      maximumFractionDigits: 2,
+    }).format(n);
+  };
+
+  const medicamentosRaw = oferta?.[CAMPOS_OFERTA.MEDICAMENTO];
+  const medicamentosList = Array.isArray(medicamentosRaw)
+    ? medicamentosRaw
+    : medicamentosRaw
+    ? [medicamentosRaw]
+    : [];
+
+  const montosRaw = oferta?.[CAMPOS_OFERTA.MONTO];
+  const montosList = Array.isArray(montosRaw)
+    ? montosRaw
+    : montosRaw
+    ? [montosRaw]
+    : [];
+
+  const maxLen = Math.max(medicamentosList.length, montosList.length);
+
+  const rows = Array.from({ length: maxLen }).map((_, i) => ({
+    medicamento: medicamentosList[i] ?? "—",
+    montoNum: parseMonto(montosList[i]),
+  }));
+
+  const total = rows.reduce((acc, r) => acc + (Number(r.montoNum) || 0), 0);
+
+  /** ---------------------------------------- */
 
   return (
     <View style={styles.card}>
@@ -49,8 +93,28 @@ export default function HistorialCard({ pedido, oferta}) {
       <Text style={styles.text}>Fecha de llegada: {fechaTexto}</Text>
       <Text style={styles.text}>Dirección: {direccion}</Text>
       <Text style={styles.text}>Obra social: {obraSocial}</Text>
-      <Text style={styles.text}>Medicamentos: {medicamentos}</Text>
-      <Text style={styles.text}>Monto: {monto}</Text>
+      <Text style={styles.text}>Número de afiliado: {NumAfiliado}</Text>
+
+      {/* --- BLOQUE DE MEDICAMENTOS (copiado igual al de CardPedidoPendiente) --- */}
+      <View style={{ marginTop: 10, marginBottom: 10 }}>
+        <Text style={styles.medicamentosTitle}>Medicamentos vendidos:</Text>
+
+        {rows.map((r, idx) => (
+          <View key={idx} style={styles.medicamentoRow}>
+            <Text style={styles.medicamentoName} numberOfLines={1}>
+              {r.medicamento}
+            </Text>
+            <Text style={styles.medicamentoPrecio}>
+              {formatCurrency(r.montoNum)}
+            </Text>
+          </View>
+        ))}
+
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>Total</Text>
+          <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -84,5 +148,52 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     color: theme.colors.mutedForeground,
     textAlign: "center",
+  },
+
+  /* COPIADOS DE CardPedidoPendiente */
+  medicamentosTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#444",
+    marginBottom: 6,
+  },
+  medicamentoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderColor: "#e1e1e1",
+  },
+  medicamentoName: {
+    flex: 1,
+    fontSize: 14,
+    color: "#333",
+    marginRight: 10,
+  },
+  medicamentoPrecio: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    minWidth: 80,
+    textAlign: "right",
+  },
+
+  totalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8,
+    paddingVertical: 6,
+    borderTopWidth: 1,
+    borderColor: "#ccc",
+  },
+  totalLabel: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: theme.colors.primary,
+  },
+  totalValue: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: theme.colors.primary,
   },
 });

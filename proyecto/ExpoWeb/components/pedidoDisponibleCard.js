@@ -78,6 +78,7 @@ export default function PedidoDisponibleCard({ pedido, farmacia, tiempoEspera })
         setFarmaciaData(snap.data());
       }
     } catch (err) {
+      showAlert("error", { message: "Error cargando farmacia." });
       console.error("Error cargando farmacia:", err);
     }
   };

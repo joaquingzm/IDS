@@ -36,19 +36,36 @@ login_success: {
   message: "Sesión iniciada correctamente.",
 },
 
+
+
 oferta_success: {
   type: "toast",
   preset: "done",
   title: "Oferta enviada ",
   message: "Tu oferta fue procesada correctamente .",
 },
-
+rechazar_pedido: {
+  title: "Confirmar rechazo",
+},
+cambio_success: {
+  type: "toast",
+  preset: "done",
+  title: "Cambio de estado realizado ",
+  message: "{{message}}",
+},
 
 pedido_rechazado_success: {
   type: "toast",
   preset: "done",
   title: "Pedido rechazado ",
   message: "No ofertaste por el pedido.",
+},
+
+pedido_rechazado_success: {
+  type: "toast",
+  preset: "done",
+  title: "Pedido rechazado ",
+  message: "Rechazaste el pedido del usuario.",
 },
 
 oferta_rechazada_success: {
@@ -102,11 +119,24 @@ signout_error: {
   message: "{{message}}",
 },
 
+confirm_change_state: {
+    title: "¿Queres cambiar de estado al pedido?",
+  },
+
 signout_success: {
   type: "toast",
   preset: "done",
   title: "Hasta pronto {{nombre}} 👋",
   message: "Sesión cerrada correctamente.",
 },
-
+ confirmar_marcar_pedido: {
+    type: "alert",
+    title: '¿Marcar pedido como "{{estado}}"?',
+    message: "Se actualizará el estado del pedido.",
+    actions: (params) => [
+      { title: "Cancelar", style: "cancel" },
+      { title: "Aceptar", onPress: params.onConfirm },
+    ],
+  },
 };
+

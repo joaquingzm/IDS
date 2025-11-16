@@ -34,8 +34,7 @@ export default function HistorialScreen() {
                 const ofertas = await firestoreService.listOfertasForPedido(pedido.id);
                 const ofertaGanadora = ofertas.find(
                   (of) =>
-                     of[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.ACEPTADA ||
-                     of[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.RECHAZADA
+                     of[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.ACEPTADA 
                 );
 
                 return { pedido, oferta: ofertaGanadora };
@@ -56,7 +55,7 @@ export default function HistorialScreen() {
       }
     );
 
-    // 🔁 Limpieza al desmontar
+
     return () => unsubscribe && unsubscribe();
   }, []);
 
@@ -117,6 +116,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: theme.spacing.xl,
+    flexGrow: 1,   
   },
   loaderContainer: {
     flex: 1,
@@ -125,14 +125,14 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    alignItems: "center",
     justifyContent: "center",
-    marginTop: theme.spacing.xl,
+    alignItems: "center",
   },
   noData: {
     textAlign: "center",
     color: theme.colors.mutedForeground,
     fontSize: theme.typography.fontSize.lg,
+    marginTop: theme.spacing.lg,
     opacity: 0.8,
   },
 });

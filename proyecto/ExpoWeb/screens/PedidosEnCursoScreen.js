@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { View, ActivityIndicator, StyleSheet, Text, Alert } from "react-native";
 import { theme } from "../styles/theme";
-import PedidoEnCursoCard from "../components/pedidoEnCursoCard";
+import PedidoEnCursoCard from "../components/PedidoEnCursoCard";
 import { listenPedidosPorEstadoYFarmacia, listOfertasForPedido } from "../utils/firestoreService";
 import { ESTADOS_PEDIDO } from "../dbConfig";
 import { auth } from "../firebase";
-
+import { useAlert } from "../context/AlertContext";
 export default function PedidosEnCursoScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const farmaciaId = auth.currentUser?.uid;
+   const { showAlert } = useAlert();
 
   useEffect(() => {
     if (!farmaciaId) {
@@ -55,6 +56,7 @@ export default function PedidosEnCursoScreen() {
               return { pedido, oferta: ofertaAsociada || null };
             } catch (err) {
               console.warn("Error enriqueciendo pedido:", pedido?.id, err);
+               showAlert("error", { message: "Error enriqueciendo pedido." });
               return { pedido, oferta: null };
             }
           })
@@ -64,7 +66,7 @@ export default function PedidosEnCursoScreen() {
         setPedidos(pedidosEnriquecidos);
       } catch (error) {
         console.error("Error procesando pedidos combinados:", error);
-        if (mounted) Alert.alert("Error", "No se pudieron cargar los pedidos pendientes.");
+        if (mounted)  showAlert("error", { message: "No se pudieron cargar los pedidos en curso." });;
       } finally {
         if (mounted) setLoading(false);
       }

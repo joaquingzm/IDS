@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { confirm } from "../utils/ConfirmService";
 import {
   View,
   Text,
@@ -16,9 +17,9 @@ import {
   ESTADOS_PEDIDO,
   CAMPOS_OFERTA,
 } from "../dbConfig";
-
+import { useAlert } from "../context/AlertContext";
 export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminado }) {
-
+  const { showAlert } = useAlert();
   const initialEstado =
     pedidoData?.estado && String(pedidoData.estado).length > 0
       ? pedidoData.estado
@@ -79,20 +80,9 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
     };
     const nextLabel = labelMap[siguienteEstado] ?? String(siguienteEstado);
 
-    const confirmar =
-      Platform.OS === "web"
-        ? window.confirm(`¿Marcar pedido como "${nextLabel}"?`)
-        : await new Promise((resolve) =>
-            Alert.alert(
-              "Confirmar",
-              `¿Marcar pedido como "${nextLabel}"?`,
-              [
-                { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
-                { text: "Aceptar", onPress: () => resolve(true) },
-              ],
-              { cancelable: true }
-            )
-          );
+  const confirmar = await confirm("confirm_change_state", {
+  message: `Se cambiará el estado a "${nextLabel}".`,
+});
 
     if (!confirmar) return;
 
@@ -124,16 +114,11 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
       };
 
       setPedido(newLocal);
+      
 
-      if (Platform.OS === "web") {
-        window.alert(`Pedido marcado como "${nextLabel}".`);
-      } else {
-        Alert.alert("Ok", `Pedido marcado como "${nextLabel}".`);
-      }
+      showAlert("cambio_success", { message: `Pedido marcado como "${nextLabel}".` });
     } catch (error) {
-      console.error("Error avanzando estado:", error);
-      if (Platform.OS === "web") window.alert("No se pudo avanzar el estado.");
-      else Alert.alert("Error", "No se pudo avanzar el estado.");
+      showAlert("error", { message: "No se pudo avanzar el estado." });
     } finally {
       setProcesando(false);
     }
@@ -142,21 +127,9 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
   const cancelarPedido = async () => {
     if (procesando) return;
 
-    const confirmar =
-      Platform.OS === "web"
-        ? window.confirm("¿Rechazar este pedido?")
-        : await new Promise((resolve) =>
-            Alert.alert(
-              "Confirmar rechazo",
-              "¿Estás seguro de rechazar este pedido?",
-              [
-                { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
-                { text: "Rechazar", style: "destructive", onPress: () => resolve(true) },
-              ],
-              { cancelable: true }
-            )
-          );
-
+    const confirmar = await confirm("rechazar_pedido", {
+  message: "¿Estás seguro de rechazar este pedido?",
+    });
     if (!confirmar) return;
 
     setProcesando(true);
@@ -167,11 +140,15 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
 
       await updateDoc(pedidoRef, {
         [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.RECHAZADO,
+        [CAMPOS_PEDIDO.FECHA_CANCELACION]: new Date(),
+        [CAMPOS_PEDIDO.CANCELADO_POR]: "farmacia",
       });
 
       const newPedido = {
         ...safeClone(base),
         estado: ESTADOS_PEDIDO.RECHAZADO,
+        [CAMPOS_PEDIDO.FECHA_CANCELACION]: new Date(),
+        [CAMPOS_PEDIDO.CANCELADO_POR]: "farmacia",
       };
 
       setPedido(newPedido);
@@ -179,13 +156,11 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
       if (typeof onPedidoEliminado === "function") {
         onPedidoEliminado(newPedido.id);
       }
-
-      if (Platform.OS === "web") window.alert("Pedido rechazado correctamente");
-      else Alert.alert("Pedido rechazado", "Se marcó como rechazado correctamente");
+      
+      showAlert("pedido_rechazado_success");
     } catch (error) {
-      console.error("Error al rechazar pedido:", error);
-      Alert.alert("Error", "No se pudo rechazar el pedido.");
-    } finally {
+      showAlert("error", { message: "No se pudo rechazar el pedido." });
+      } finally {
       setProcesando(false);
     }
   };
@@ -251,6 +226,8 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
     pedido?.[CAMPOS_PEDIDO.DIRECCION] || "Dirección no especificada";
   const obraSocial =
     pedido?.[CAMPOS_PEDIDO.OBRASOCIAL] || "Obra social no especificada";
+     const NumAfiliado =
+    pedido?.[CAMPOS_PEDIDO.OBRASOCIAL_NUM] || "Numero de afiliado no especificado";
 
   function formatFecha(f) {
     try {
@@ -320,6 +297,10 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
           <Text style={styles.text}>
             <Text style={styles.label}>Obra social: </Text>
             {obraSocial}
+          </Text>
+          <Text style={styles.text}>
+            <Text style={styles.label}>Número de afiliado: </Text>
+            {NumAfiliado}
           </Text>
           <View style={{ marginTop: 10, marginBottom: 10 }}>
             <Text style={[styles.label, { fontSize: 16 }]}>

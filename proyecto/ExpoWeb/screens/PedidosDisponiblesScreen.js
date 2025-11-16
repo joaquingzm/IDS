@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, FlatList, ActivityIndicator, StyleSheet, Text } from "react-native";
+import { View, FlatList, ActivityIndicator, StyleSheet, Text, Modal } from "react-native";
 import { theme } from "../styles/theme";
-import PedidoDisponibleCard from "../components/pedidoDisponibleCard";
+import PedidoDisponibleCard from "../components/PedidoDisponibleCard";
 import { listenPedidosPorEstado, listOfertasForPedido, getFarmaciaById } from "../utils/firestoreService";
 import {
   ESTADOS_PEDIDO,
@@ -10,12 +10,14 @@ import {
   CAMPOS_OFERTA
 } from "../dbConfig"
 import { auth } from "../firebase";
+import { useAlert } from "../context/AlertContext";
 
 export default function PedidosDisponiblesScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [farmacia, setFarmacia] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  const { showAlert } = useAlert();
+  const [loading2, setLoading2]= useState(false);
   // ref para guardar listeners por pedidoId
   // cada entry: { unsub?: fn, pollId?: number }
   const offerListenersRef = useRef({});
@@ -70,6 +72,7 @@ export default function PedidosDisponiblesScreen() {
   // handler que procesa ofertas (común) — ahora con cache para evitar setPedidos inútiles
   const processOffersForPedido = (p, ofertasArray) => {
     try {
+      setLoading2(true);
       const pedidoId = p.id;
       if (!pedidoId) return;
 
@@ -142,15 +145,19 @@ export default function PedidosDisponiblesScreen() {
         const otros = prev.filter((x) => x.id !== pedidoId);
         // Agregamos p (podés normalizar campos si necesitás)
         // Para mantener orden estable: añadimos al final (podés ordenar por fecha si preferís)
+          setLoading2(false);
         return [...otros, p];
       });
     } catch (err) {
+      setLoading2(false);
+      showAlert("error", { message: "Error procesando ofertas para pedido." });
       console.error("Error procesando ofertas para pedido:", err);
     }
   };
 
   // ---------------- Fetch farmacia ----------------
   useEffect(() => {
+      setLoading2(true);
     let isMounted = true;
 
     const fetchFarmacia = async (uid) => {
@@ -177,6 +184,7 @@ export default function PedidosDisponiblesScreen() {
 
         if (isMounted) setFarmacia(farmaciaNormalizada);
       } catch (err) {
+        showAlert("error", { message: "Error al obtener la farmacia." });
         console.error("Error al obtener la farmacia:", err);
         if (isMounted) {
           setFarmacia({
@@ -195,6 +203,7 @@ export default function PedidosDisponiblesScreen() {
     });
 
     return () => {
+        setLoading2(false);
       isMounted = false;
       if (typeof unsubscribeAuth === "function") unsubscribeAuth();
     };
@@ -202,6 +211,7 @@ export default function PedidosDisponiblesScreen() {
 
   // ---------------- Effect principal: escuchar pedidos ENTRANTE ----------------
   useEffect(() => {
+      setLoading2(true);
     if (!farmacia?.id) {
       // si no hay farmacia (por ejemplo logout) limpiamos y salimos
       setPedidos([]);
@@ -214,6 +224,7 @@ export default function PedidosDisponiblesScreen() {
     // subscribe a pedidos
     const unsubPedidos = listenPedidosPorEstado(ESTADOS_PEDIDO.ENTRANTE, async (items = []) => {
       try {
+          setLoading2(true);
         // asegurar que items sea array (normalización mínima)
         const listaPedidos = Array.isArray(items) ? items : [];
 
@@ -284,17 +295,20 @@ export default function PedidosDisponiblesScreen() {
                     const newest = await listOfertasForPedido(pedidoId);
                     const ofertasArr2 = Array.isArray(newest) ? newest : [];
                     processOffersForPedido(p, ofertasArr2);
-                  } catch (err) {
+                  } catch (err) {  
+                    setLoading2(false);
                     console.error("Error polling fallback:", err);
                   }
                 }, 5000);
 
                 offerListenersRef.current[pedidoId] = { pollId };
               } catch (err) {
+                  setLoading2(false);
                 console.error("listOfertasForPedido no devolvió unsub ni Promise:", err);
               }
             }
           } catch (err) {
+              setLoading2(false);
             console.error("Error registrando listener de ofertas:", err);
           }
         }
@@ -305,11 +319,13 @@ export default function PedidosDisponiblesScreen() {
           setLoading(false);
         }
       } catch (err) {
+          setLoading2(false);
         console.error("Error en snapshot de pedidos ENTRANTE:", err);
         // asegurar que el loader no quede pegado si hay error
         if (!firstLoadedRef.current) {
           firstLoadedRef.current = true;
           setLoading(false);
+          setLoading2(false);
         }
       }
     });
@@ -317,9 +333,11 @@ export default function PedidosDisponiblesScreen() {
     // cleanup general del effect
     return () => {
       try {
+          setLoading2(true);
         if (typeof unsubPedidos === "function") unsubPedidos();
       } catch (e) {}
       // limpiar todos los listeners de ofertas y metas
+        setLoading2(false);
       Object.keys(offerListenersRef.current).forEach((id) => clearListenerForPedido(id));
       offerListenersRef.current = {};
       pedidosMetaRef.current = {};
@@ -339,6 +357,18 @@ export default function PedidosDisponiblesScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Pedidos disponibles</Text>
+
+      <Modal
+          visible={loading}
+          transparent={true}
+          animationType="fade"
+          statusBarTranslucent={true}
+          >
+          <View style={styles.overlay}>
+          {/* 🔹 Spinner de carga */}
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+          </View>
+          </Modal>
 
       {pedidos.length > 0 ? (
         <FlatList
@@ -385,6 +415,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderColor: theme.colors.mutedForeground,
     paddingBottom: theme.spacing.sm,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   listContainer: {
     paddingBottom: theme.spacing.xl,
