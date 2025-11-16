@@ -20,10 +20,136 @@ export default function PedidosDisponiblesScreen() {
   // cada entry: { unsub?: fn, pollId?: number }
   const offerListenersRef = useRef({});
 
+  // meta/cache por pedido para evitar setPedidos innecesarios
+  // cada entry: { pedidoHash: string, ofertasLen: number, yaOferto: boolean, noOfertaronKey: string }
+  const pedidosMetaRef = useRef({});
+
   // para asegurar que solo hacemos setLoading(false) una vez (primer snapshot)
   const firstLoadedRef = useRef(false);
 
-  // Obtener farmacia actual
+  // ---------------- helpers ----------------
+  const stableStringify = (obj) => {
+    // stringify estable ordenando keys recursivamente
+    const _stable = (o) => {
+      if (o === null || typeof o !== "object") return o;
+      if (Array.isArray(o)) return o.map(_stable);
+      const keys = Object.keys(o).sort();
+      const res = {};
+      for (const k of keys) res[k] = _stable(o[k]);
+      return res;
+    };
+    try {
+      return JSON.stringify(_stable(obj));
+    } catch (e) {
+      return String(obj);
+    }
+  };
+
+  // helper: limpiar listener y meta
+  const clearListenerForPedido = (pedidoId) => {
+    const entry = offerListenersRef.current[pedidoId];
+    if (entry) {
+      try {
+        if (typeof entry.unsub === "function") entry.unsub();
+      } catch (e) {
+        console.warn("Error calling unsub:", e);
+      }
+      try {
+        if (entry.pollId) clearInterval(entry.pollId);
+      } catch (e) {
+        /* ignore */
+      }
+      delete offerListenersRef.current[pedidoId];
+    }
+    // limpiar meta cache
+    if (pedidosMetaRef.current[pedidoId]) {
+      delete pedidosMetaRef.current[pedidoId];
+    }
+  };
+
+  // handler que procesa ofertas (común) — ahora con cache para evitar setPedidos inútiles
+  const processOffersForPedido = (p, ofertasArray) => {
+    try {
+      const pedidoId = p.id;
+      if (!pedidoId) return;
+
+      const farmaciaId = String(farmacia?.id ?? "");
+
+      const noOfertaron =
+        Array.isArray(p?.[CAMPOS_PEDIDO.FARMACIAS_NO_OFERTARON])
+          ? p[CAMPOS_PEDIDO.FARMACIAS_NO_OFERTARON].map(String)
+          : [];
+
+      // Si la farmacia marcó "no ofertar", eliminarlo si estaba
+      if (noOfertaron.includes(farmaciaId)) {
+        // sólo setear si estaba presente
+        setPedidos((prev) => {
+          if (!prev.some((x) => x.id === pedidoId)) return prev;
+          const next = prev.filter((x) => x.id !== pedidoId);
+          // limpiar meta
+          if (pedidosMetaRef.current[pedidoId]) delete pedidosMetaRef.current[pedidoId];
+          return next;
+        });
+        return;
+      }
+
+      const yaOferto = Array.isArray(ofertasArray)
+        ? ofertasArray.some((of) => String(of?.[CAMPOS_OFERTA.FARMACIA_ID]) === farmaciaId)
+        : false;
+
+      if (yaOferto) {
+        // si ya ofertó, eliminarlo de la lista (si estaba)
+        setPedidos((prev) => {
+          if (!prev.some((x) => x.id === pedidoId)) return prev;
+          const next = prev.filter((x) => x.id !== pedidoId);
+          if (pedidosMetaRef.current[pedidoId]) delete pedidosMetaRef.current[pedidoId];
+          return next;
+        });
+        return;
+      }
+
+      // --- comparar meta para ver si realmente cambió ---
+      const pedidoHash = stableStringify(p);
+      const ofertasLen = Array.isArray(ofertasArray) ? ofertasArray.length : 0;
+      const noOfertaronKey = noOfertaron.join("|");
+      const yaOfertoKey = yaOferto ? "1" : "0";
+
+      const prevMeta = pedidosMetaRef.current[pedidoId];
+
+      const sameAsPrev =
+        prevMeta &&
+        prevMeta.pedidoHash === pedidoHash &&
+        prevMeta.ofertasLen === ofertasLen &&
+        prevMeta.noOfertaronKey === noOfertaronKey &&
+        prevMeta.yaOfertoKey === yaOfertoKey;
+
+      if (sameAsPrev) {
+        // no hubo cambio significativo -> evitamos setPedidos para reducir re-renders
+        return;
+      }
+
+      // actualizar meta
+      pedidosMetaRef.current[pedidoId] = {
+        pedidoHash,
+        ofertasLen,
+        noOfertaronKey,
+        yaOfertoKey,
+      };
+
+      // Pasa los filtros → agregar/actualizar
+      setPedidos((prev) => {
+        // si ya está, reemplazar la versión anterior (mantener inmutabilidad)
+        const otros = prev.filter((x) => x.id !== pedidoId);
+        // Agregamos p (podés normalizar campos si necesitás)
+        // Para mantener orden estable: añadimos al final (podés ordenar por fecha si preferís)
+        return [...otros, p];
+      });
+    } catch (err) {
+      console.error("Error procesando ofertas para pedido:", err);
+    }
+  };
+
+  // ---------------- Fetch farmacia ----------------
   useEffect(() => {
     let isMounted = true;
 
@@ -74,7 +200,7 @@ export default function PedidosDisponiblesScreen() {
     };
   }, []);
 
-  // Effect principal: escuchar pedidos ENTRANTE y subscribir a ofertas por pedido
+  // ---------------- Effect principal: escuchar pedidos ENTRANTE ----------------
   useEffect(() => {
     if (!farmacia?.id) {
       // si no hay farmacia (por ejemplo logout) limpiamos y salimos
@@ -84,61 +210,6 @@ export default function PedidosDisponiblesScreen() {
     }
 
     const farmaciaId = String(farmacia.id);
-
-    // helper para limpiar listener de un pedido
-    const clearListenerForPedido = (pedidoId) => {
-      const entry = offerListenersRef.current[pedidoId];
-      if (!entry) return;
-      try {
-        if (typeof entry.unsub === "function") entry.unsub();
-      } catch (e) {
-        console.warn("Error calling unsub:", e);
-      }
-      try {
-        if (entry.pollId) clearInterval(entry.pollId);
-      } catch (e) {
-        /* ignore */
-      }
-      delete offerListenersRef.current[pedidoId];
-    };
-
-    // handler que procesa ofertas (común)
-    const processOffersForPedido = (p, ofertasArray) => {
-      try {
-        const pedidoId = p.id;
-        const noOfertaron =
-          Array.isArray(p?.[CAMPOS_PEDIDO.FARMACIAS_NO_OFERTARON])
-            ? p[CAMPOS_PEDIDO.FARMACIAS_NO_OFERTARON].map(String)
-            : [];
-
-        // Si la farmacia marcó "no ofertar", eliminarlo si estaba
-        if (noOfertaron.includes(farmaciaId)) {
-          setPedidos((prev) => prev.filter((x) => x.id !== pedidoId));
-          return;
-        }
-
-        const yaOferto = Array.isArray(ofertasArray)
-          ? ofertasArray.some(
-              (of) => String(of?.[CAMPOS_OFERTA.FARMACIA_ID]) === farmaciaId
-            )
-          : false;
-
-        if (yaOferto) {
-          // si ya ofertó, eliminarlo de la lista (si estaba)
-          setPedidos((prev) => prev.filter((x) => x.id !== pedidoId));
-          return;
-        }
-
-        // Pasa los filtros → agregar/actualizar
-        setPedidos((prev) => {
-          // si ya está, reemplazar la versión anterior (mantener inmutabilidad)
-          const otros = prev.filter((x) => x.id !== pedidoId);
-          return [...otros, p];
-        });
-      } catch (err) {
-        console.error("Error procesando ofertas para pedido:", err);
-      }
-    };
 
     // subscribe a pedidos
     const unsubPedidos = listenPedidosPorEstado(ESTADOS_PEDIDO.ENTRANTE, async (items = []) => {
@@ -153,7 +224,7 @@ export default function PedidosDisponiblesScreen() {
         Object.keys(offerListenersRef.current).forEach((id) => {
           if (!snapshotIds.includes(id)) {
             clearListenerForPedido(id);
-            // también eliminar del estado visual
+            // también eliminar del estado visual (si estaba)
             setPedidos((prev) => prev.filter((x) => x.id !== id));
           }
         });
@@ -163,21 +234,19 @@ export default function PedidosDisponiblesScreen() {
           const pedidoId = p.id;
           if (!pedidoId) continue;
 
-          // si ya tenemos listener, no lo re-creamos (pero podríamos querer refresh inmediato)
+          // si ya tenemos listener, no lo re-creamos
           if (offerListenersRef.current[pedidoId]) {
-            // opcional: podríamos disparar una verificación inicial aquí si queremos
             continue;
           }
 
           // intentamos registrar listener con listOfertasForPedido
           try {
             const maybeUnsub = listOfertasForPedido(pedidoId, (ofertasRealtime = []) => {
-              // si la función se comporta como listener, vendrá por aquí
               const ofertasArr = Array.isArray(ofertasRealtime) ? ofertasRealtime : [];
               processOffersForPedido(p, ofertasArr);
             });
 
-            // si devuelve una función -> ok, es un unsub
+            // si devuelve una función -> ok, es un unsub (realtime)
             if (typeof maybeUnsub === "function") {
               offerListenersRef.current[pedidoId] = { unsub: maybeUnsub };
             } else if (maybeUnsub && typeof maybeUnsub.then === "function") {
@@ -191,7 +260,7 @@ export default function PedidosDisponiblesScreen() {
                 console.error("Error obteniendo ofertas inicial (one-shot):", err);
               }
 
-              // iniciar polling
+              // iniciar polling cada 5s (reduzco frecuencia)
               const pollId = setInterval(async () => {
                 try {
                   const newest = await listOfertasForPedido(pedidoId);
@@ -200,7 +269,7 @@ export default function PedidosDisponiblesScreen() {
                 } catch (err) {
                   console.error("Error en polling de ofertas:", err);
                 }
-              }, 2500);
+              }, 5000);
 
               offerListenersRef.current[pedidoId] = { pollId };
             } else {
@@ -218,7 +287,7 @@ export default function PedidosDisponiblesScreen() {
                   } catch (err) {
                     console.error("Error polling fallback:", err);
                   }
-                }, 2500);
+                }, 5000);
 
                 offerListenersRef.current[pedidoId] = { pollId };
               } catch (err) {
@@ -250,9 +319,10 @@ export default function PedidosDisponiblesScreen() {
       try {
         if (typeof unsubPedidos === "function") unsubPedidos();
       } catch (e) {}
-      // limpiar todos los listeners de ofertas
+      // limpiar todos los listeners de ofertas y metas
       Object.keys(offerListenersRef.current).forEach((id) => clearListenerForPedido(id));
       offerListenersRef.current = {};
+      pedidosMetaRef.current = {};
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [farmacia]);
@@ -273,7 +343,8 @@ export default function PedidosDisponiblesScreen() {
       {pedidos.length > 0 ? (
         <FlatList
           data={pedidos}
-          keyExtractor={(item) => item.id || item.docId || JSON.stringify(item)}
+          // clave estable: preferir id; si no, usar index como fallback
+          keyExtractor={(item, index) => item.id ?? item.docId ?? String(index)}
           renderItem={({ item }) => (
             <PedidoDisponibleCard
               pedido={item}
