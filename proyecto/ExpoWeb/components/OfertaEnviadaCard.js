@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Image, Modal, Pressable } from "react-native";
+import { View, Text, StyleSheet, Image, Modal, Pressable, TouchableOpacity } from "react-native";
 import { theme } from "../styles/theme";
 import { CAMPOS_OFERTA, CAMPOS_PEDIDO } from "../dbConfig";
+import { deleteOferta } from "../utils/firestoreService";
+import { useAlert } from "../context/AlertContext";
 
-export default function CardPedidoPendiente({ pedido, oferta }) {
+export default function CardPedidoPendiente({ pedido, oferta,onRechazarLocal }) {
   const [modalVisible, setModalVisible] = useState(false);
 
   const nombre = pedido[CAMPOS_PEDIDO.NOMBRE_USUARIO] || "No especificado";
@@ -13,10 +15,25 @@ export default function CardPedidoPendiente({ pedido, oferta }) {
   const fechaPedido = pedido[CAMPOS_PEDIDO.FECHA_PEDIDO]?.toDate?.() || null;
   const imagen = pedido[CAMPOS_PEDIDO.IMAGEN];
   const Farmacia_nombre = oferta?.[CAMPOS_OFERTA.NOMBRE_FARMACIA] ?? "Farmacia";
+  const { showAlert } = useAlert();
 
   /** --------------------------
    * Normalización igual que OfertaCard
    --------------------------- */
+
+  const handleRechazar = async () => {
+    try {
+      await deleteOferta(pedido.id, oferta.id);
+
+       onRechazarLocal(oferta.id);
+      showAlert("oferta_rechazada_success");
+  
+    } catch (error) {
+      console.error("Error al rechazar:", error);
+      showAlert("error", { message: "Error al rechazar la oferta." });
+    }
+  };
+
 
   const parseMonto = (value) => {
     if (value == null || value === "") return 0;
@@ -69,6 +86,8 @@ export default function CardPedidoPendiente({ pedido, oferta }) {
   }));
 
   const total = rows.reduce((acc, r) => acc + (Number(r.montoNum) || 0), 0);
+
+  
 
   return (
     <View style={styles.card}>
@@ -123,6 +142,10 @@ export default function CardPedidoPendiente({ pedido, oferta }) {
             {fechaPedido.toLocaleTimeString()}
           </Text>
         )}
+        <TouchableOpacity style={[styles.button]} onPress={handleRechazar}>
+                <Text style={styles.buttonText}>Cancelar la oferta</Text>
+        </TouchableOpacity>
+
       </View>
 
       {/* Modal para ver imagen */}
@@ -234,6 +257,18 @@ const styles = StyleSheet.create({
     minWidth: 80,
     textAlign: "right",
   },
+
+   button: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+    marginHorizontal: 6,
+    paddingVertical: 8,
+    marginVertical: 8,
+    backgroundColor: "#999"
+  },
+
 
   totalRow: {
     flexDirection: "row",

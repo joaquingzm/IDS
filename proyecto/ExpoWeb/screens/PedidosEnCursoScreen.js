@@ -117,27 +117,24 @@ export default function PedidosEnCursoScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Pedidos en Curso</Text>
-
-      {pedidos.length > 0 ? (
-        <View style={styles.listContainer}>
-          {pedidos.map(({ pedido, oferta }) => (
-            <PedidoEnCursoCard
-              key={pedido.id}
-              pedidoData={pedido}
-              oferta={oferta}
-              onPedidoEliminado={handlePedidoEliminado}
-            />
-          ))}
-        </View>
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.noPedidoText}>No hay pedidos en curso</Text>
-        </View>
-      )}
-    </View>
-  );
+  <View style={styles.container}>
+     <Text style={styles.title}>Pedidos en Curso</Text>
+    {pedidos.length === 0 ? (
+       <View style={styles.emptyContainer}>
+      <Text style={styles.noPedidoText}>No hay pedidos en curso.</Text>
+      </View>
+    ) : (
+      pedidos.map(({ pedido, oferta }) => (
+        <PedidoEnCursoCard
+          key={pedido.id}
+          pedidoData={pedido}
+          oferta={oferta}
+          onPedidoEliminado={handlePedidoEliminado}
+        />
+      ))
+    )}
+  </View>
+);
 }
 
 const styles = StyleSheet.create({

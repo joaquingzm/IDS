@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from "react-native";
 import { theme } from "../styles/theme";
-import HistorialCard from "../components/pedidoHistorialCard";
+import HistorialCard from "../components/PedidoHistorialCard";
 import { auth } from "../firebase";
 import { CAMPOS_PEDIDO, ESTADOS_PEDIDO, CAMPOS_OFERTA, ESTADOS_OFERTA } from "../dbConfig";
 import * as firestoreService from "../utils/firestoreService";
@@ -33,7 +33,9 @@ export default function HistorialScreen() {
               try {
                 const ofertas = await firestoreService.listOfertasForPedido(pedido.id);
                 const ofertaGanadora = ofertas.find(
-                  (of) => of[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.ACEPTADA
+                  (of) =>
+                     of[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.ACEPTADA ||
+                     of[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.RECHAZADA
                 );
 
                 return { pedido, oferta: ofertaGanadora };

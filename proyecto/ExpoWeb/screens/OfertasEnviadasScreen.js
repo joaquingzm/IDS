@@ -10,7 +10,15 @@ export default function OfertasEnviadasScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const farmaciaId = auth.currentUser?.uid;
-
+const eliminarOfertaLocal = (pedidoId, ofertaId) => {
+  setPedidos((prev) =>
+    prev.filter(
+      (item) =>
+        item.pedido.id !== pedidoId ||
+        item.oferta.id !== ofertaId
+    )
+  );
+};
   useEffect(() => {
     if (!farmaciaId) {
       setPedidos([]);
@@ -78,6 +86,9 @@ export default function OfertasEnviadasScreen() {
               key={pedido.id}
               pedido={pedido}
               oferta={oferta}
+              onRechazarLocal={(ofertaId) =>
+    eliminarOfertaLocal(pedido.id, ofertaId)
+          }
             />
           ))}
         </ScrollView>

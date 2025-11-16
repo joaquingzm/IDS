@@ -51,6 +51,14 @@ pedido_rechazado_success: {
   message: "No ofertaste por el pedido.",
 },
 
+oferta_rechazada_success: {
+  type: "toast",
+  preset: "done",
+  title: "Tu oferta se cancelo ",
+  message: "Cancelaste la oferta propuesta al usuario.",
+},
+
+
   // Podemos hacer alertas con botones de esta manera
   confirmar_eliminar_pedido: {
     type: "alert",
