@@ -8,6 +8,7 @@ import PedidosEnCursoScreen from "../screens/PedidosEnCursoScreen";
 import OfertasEnviadasScreen from "../screens/OfertasEnviadasScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 
+
 export default function AppLayout() {
   const [activeTab, setActiveTab] = useState("Inicio");
 

@@ -7,9 +7,11 @@ import { Platform } from "react-native";
 import { Toaster } from "burnt/web";
 import Toast from "react-native-toast-message";
 import { toastConfig } from "./utils/ToastConfig";
+import { ConfirmProvider } from "./utils/ConfirmService";
 
 export default function App() {
   return (
+    <ConfirmProvider>
     <AuthProvider>
       <AlertProvider>
         <NavigationContainer>
@@ -19,5 +21,6 @@ export default function App() {
         <Toast config={toastConfig} position="top" />
       </AlertProvider>
     </AuthProvider>
+    </ConfirmProvider>
   );
 }

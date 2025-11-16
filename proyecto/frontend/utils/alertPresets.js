@@ -71,6 +71,18 @@ pedido_success: {
   message: "Sesión cerrada correctamente.",
 },
 
+pedido_recibido_error: {
+  type: "toast",
+  preset: "error",
+  title: "Error recibiendo el pedido.",
+},
+
+pedido_recibido_success: {
+  type: "toast",
+  preset: "done",
+  title: "Pedido recibido exitosamente.",
+},
+
 campo_invalido: {
     type: "toast",
     preset: "error",
@@ -84,6 +96,16 @@ campo_invalido: {
   title: "Campos incompletos ",
   message: "Por favor, completá todos los campos antes de continuar.",
 },
+
+  confirm_accept_offer: {
+    title: "¿Aceptar oferta?",
+  },
+
+  confirm_entrega: {
+    title: "¿Confirmar entrega?",
+  },
+  // ...otros presets
+
 
 
   // Podemos hacer alertas con botones de esta manera

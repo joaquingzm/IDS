@@ -2,57 +2,67 @@ import React, { useEffect, useState } from "react";
 import { View, FlatList, ActivityIndicator, StyleSheet, Text, ScrollView } from "react-native";
 import { theme } from "../styles/theme";
 import OfertaEnviadaCard from "../components/OfertaEnviadaCard";
-import { listOfertasForPedido, listenPedidosPorEstadoYFarmacia } from "../utils/firestoreService";
-import { ESTADOS_PEDIDO } from "../dbConfig";
+import { listOfertasForPedido, listenPedidosPorEstado } from "../utils/firestoreService";
+import { ESTADOS_PEDIDO, CAMPOS_OFERTA } from "../dbConfig";
 import { auth } from "../firebase";
 
 export default function OfertasEnviadasScreen() {
   const [pedidos, setPedidos] = useState([]);
-const [loading, setLoading] = useState(true);
-const farmaciaId = auth.currentUser?.uid;
+  const [loading, setLoading] = useState(true);
+  const farmaciaId = auth.currentUser?.uid;
+const eliminarOfertaLocal = (pedidoId, ofertaId) => {
+  setPedidos((prev) =>
+    prev.filter(
+      (item) =>
+        item.pedido.id !== pedidoId ||
+        item.oferta.id !== ofertaId
+    )
+  );
+};
+  useEffect(() => {
+    if (!farmaciaId) {
+      setPedidos([]);
+      setLoading(false);
+      return;
+    }
 
-useEffect(() => {
-  if (!farmaciaId) {
-    setPedidos([]);
-    setLoading(false);
-    return;
-  }
+    const unsub = listenPedidosPorEstado(
+      ESTADOS_PEDIDO.ENTRANTE,
+      async (items) => {
+        try {
+          const resultados = [];
 
-  const unsub = listenPedidosPorEstadoYFarmacia(
-    ESTADOS_PEDIDO.PENDIENTE,
-    farmaciaId,
-    async (pedidosSnapshot) => {
-      try {
-        // Enriquecer cada pedido con su oferta asociada
-        const pedidosEnriquecidos = await Promise.all(
-          pedidosSnapshot.map(async (pedido) => {
+          for (const pedido of items) {
             try {
+              // Obtenemos todas las ofertas reales del pedido
               const ofertas = await listOfertasForPedido(pedido.id);
+
+              // Buscamos si alguna pertenece a esta farmacia
               const ofertaAsociada = ofertas.find(
-                (of) => of.farmaciaId === farmaciaId // o el campo correcto según tu modelo
+                (of) => String(of?.[CAMPOS_OFERTA.FARMACIA_ID]) === String(farmaciaId)
               );
 
-              return { pedido, oferta: ofertaAsociada || null };
+              // Si no tiene oferta de esta farmacia → ignorar
+              if (!ofertaAsociada) continue;
+
+              // Si tiene oferta → lo agregamos
+              resultados.push({ pedido, oferta: ofertaAsociada });
             } catch (err) {
-              console.warn("Error enriqueciendo pedido:", pedido.id, err);
-              return { pedido, oferta: null };
+              console.warn("Error procesando pedido:", pedido.id, err);
             }
-          })
-        );
+          }
 
-        setPedidos(pedidosEnriquecidos);
-      } catch (error) {
-        console.error("Error procesando pedidos pendientes:", error);
-        Alert.alert("Error", "No se pudieron cargar los pedidos pendientes.");
-      } finally {
-        setLoading(false);
+          setPedidos(resultados);
+        } catch (error) {
+          console.error("Error cargando ofertas enviadas:", error);
+        } finally {
+          setLoading(false);
+        }
       }
-    }
-  );
-      return () => unsub();
-    }, []);
+    );
 
-
+    return () => unsub();
+  }, []);
 
   if (loading) {
     return (
@@ -63,29 +73,32 @@ useEffect(() => {
   }
 
   return (
- <View style={styles.container}>
-  <Text style={styles.title}>Ofertas Enviadas</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Ofertas Enviadas</Text>
 
-  {pedidos.length > 0 ? (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.listContainer}
-    >
-      {pedidos.map(({ pedido, oferta }) => (
-        <OfertaEnviadaCard
-          key={pedido.id}
-          pedido={pedido}
-          oferta={oferta}
-        />
-      ))}
-    </ScrollView>
-  ) : (
-    <View style={styles.emptyContainer}>
-      <Text style={styles.noPedidosText}>No hay ofertas enviadas</Text>
+      {pedidos.length > 0 ? (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContainer}
+        >
+          {pedidos.map(({ pedido, oferta }) => (
+            <OfertaEnviadaCard
+              key={pedido.id}
+              pedido={pedido}
+              oferta={oferta}
+              onRechazarLocal={(ofertaId) =>
+    eliminarOfertaLocal(pedido.id, ofertaId)
+          }
+            />
+          ))}
+        </ScrollView>
+      ) : (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.noPedidosText}>No has enviado ofertas aún</Text>
+        </View>
+      )}
     </View>
-  )}
-</View>
-);
+  );
 }
 
 const styles = StyleSheet.create({

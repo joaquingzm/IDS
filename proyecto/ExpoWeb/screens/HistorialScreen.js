@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from "react-native";
 import { theme } from "../styles/theme";
-import HistorialCard from "../components/PedidoHistorialCard";
+import HistorialCard from "../components/pedidoHistorialCard";
 import { auth } from "../firebase";
 import { CAMPOS_PEDIDO, ESTADOS_PEDIDO, CAMPOS_OFERTA, ESTADOS_OFERTA } from "../dbConfig";
 import * as firestoreService from "../utils/firestoreService";
@@ -33,7 +33,8 @@ export default function HistorialScreen() {
               try {
                 const ofertas = await firestoreService.listOfertasForPedido(pedido.id);
                 const ofertaGanadora = ofertas.find(
-                  (of) => of[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.ACEPTADA
+                  (of) =>
+                     of[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.ACEPTADA 
                 );
 
                 return { pedido, oferta: ofertaGanadora };
@@ -54,7 +55,7 @@ export default function HistorialScreen() {
       }
     );
 
-    // 🔁 Limpieza al desmontar
+
     return () => unsubscribe && unsubscribe();
   }, []);
 
@@ -115,6 +116,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: theme.spacing.xl,
+    flexGrow: 1,   
   },
   loaderContainer: {
     flex: 1,
@@ -123,14 +125,14 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    alignItems: "center",
     justifyContent: "center",
-    marginTop: theme.spacing.xl,
+    alignItems: "center",
   },
   noData: {
     textAlign: "center",
     color: theme.colors.mutedForeground,
     fontSize: theme.typography.fontSize.lg,
+    marginTop: theme.spacing.lg,
     opacity: 0.8,
   },
 });
