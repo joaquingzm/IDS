@@ -13,6 +13,7 @@ export default function CardPedidoPendiente({ pedido, oferta }) {
   const imagen = pedido[CAMPOS_PEDIDO.IMAGEN];
   const monto = oferta[CAMPOS_OFERTA.MONTO]; //Hay que traerse la oferta;
   const medicamentos = oferta[CAMPOS_OFERTA.MEDICAMENTO] || "No especificado";
+  const Farmacia_nombre = oferta[CAMPOS_OFERTA.NOMBRE_FARMACIA] || "No especificado";
 
   return (
     <View style={styles.card}>
@@ -30,7 +31,7 @@ export default function CardPedidoPendiente({ pedido, oferta }) {
 
         <View style={styles.extraTextContainer}>
           <Text style={styles.extraText}>🕓 Esperando a ser aceptado por el usuario</Text>
-          <Text style={styles.extraSubText}>Farmacia Central</Text>
+          <Text style={styles.extraSubText}>{Farmacia_nombre}</Text>
         </View>
       </View>
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -38,6 +38,7 @@ export default function PedidoDisponibleCard({ pedido, farmacia, tiempoEspera })
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const { showAlert } = useAlert();
   const [loading, setLoading]= useState(false);
+  const [farmaciaData, setFarmaciaData] = useState(null);
 
 
 
@@ -66,6 +67,23 @@ export default function PedidoDisponibleCard({ pedido, farmacia, tiempoEspera })
   const agregarItem = () => {
     setItems([...items, { medicamento: "", monto: "" }]);
   };
+
+  useEffect(() => {
+  const fetchFarmacia = async () => {
+    try {
+      const docRef = doc(db, COLECCION_FARMACIAS, farmaciaId);
+      const snap = await getDoc(docRef);
+
+      if (snap.exists()) {
+        setFarmaciaData(snap.data());
+      }
+    } catch (err) {
+      console.error("Error cargando farmacia:", err);
+    }
+  };
+
+  if (farmaciaId) fetchFarmacia();
+}, [farmaciaId]);
 
   // Borrar ítem
   const borrarItem = (index) => {
@@ -137,7 +155,7 @@ if (!tiempoEsperaLocal || isNaN(Number(tiempoEsperaLocal)) || Number(tiempoEsper
 
     await crearOferta(pedido.id, {
       [CAMPOS_OFERTA.FARMACIA_ID]: farmaciaId || "",
-      [CAMPOS_OFERTA.NOMBRE_FARMACIA]: farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "",
+      [CAMPOS_OFERTA.NOMBRE_FARMACIA]: farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "Farmacia desconocida",
       [CAMPOS_OFERTA.MEDICAMENTO]: medicamentosList,
       [CAMPOS_OFERTA.MONTO]: montosList,
       [CAMPOS_OFERTA.TIEMPO_ESPERA]: Number(tiempoEsperaLocal),
@@ -200,9 +218,6 @@ const handleRechazar = async () => {
 
         <View style={styles.extraTextContainer}>
           <Text style={styles.extraText}>🕓 Pendiente de confirmación</Text>
-          <Text style={styles.extraSubText}>
-            {farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "Farmacia desconocida"}
-          </Text>
         </View>
       </View>
 
