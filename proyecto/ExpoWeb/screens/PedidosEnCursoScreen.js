@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { View, FlatList, ActivityIndicator, StyleSheet, Text } from "react-native";
+import { View, ActivityIndicator, StyleSheet, Text, Alert } from "react-native";
 import { theme } from "../styles/theme";
 import PedidoEnCursoCard from "../components/pedidoEnCursoCard";
-import { listenPedidosPorEstado } from "../utils/firestoreService";
+import { listenPedidosPorEstadoYFarmacia, listOfertasForPedido } from "../utils/firestoreService";
 import { ESTADOS_PEDIDO } from "../dbConfig";
 import { auth } from "../firebase";
-import { listOfertasForPedido, listenPedidosPorEstadoYFarmacia } from "../utils/firestoreService";
 
 export default function PedidosEnCursoScreen() {
   const [pedidos, setPedidos] = useState([]);
@@ -18,70 +17,95 @@ export default function PedidosEnCursoScreen() {
       setLoading(false);
       return;
     }
-  
-    const latestSnapshots = { activo: [], confirmacion: [] };
 
-const processCombined = async () => {
-  try {
-    // combinar y eliminar duplicados por id
-    const combinedRaw = [...latestSnapshots.activo, ...latestSnapshots.confirmacion];
-    const map = new Map();
-    combinedRaw.forEach((p) => map.set(p.id, p));
-    const uniquePedidos = Array.from(map.values());
+    // guardamos los últimos snapshots por estado y los combinamos
+    const latestSnapshots = {
+      activo: [],
+      en_preparacion: [],
+      en_camino: [],
+      pendiente: [],
+      confirmacion: [],
+    };
 
-    // enriquecer con ofertas
-    const pedidosEnriquecidos = await Promise.all(
-      uniquePedidos.map(async (pedido) => {
+    let mounted = true;
+
+    const processCombined = async () => {
+      try {
+        // combinar todos los arrays y eliminar duplicados por id
+        const combinedRaw = [
+          ...latestSnapshots.activo,
+          ...latestSnapshots.en_preparacion,
+          ...latestSnapshots.en_camino,
+          ...latestSnapshots.pendiente,
+          ...latestSnapshots.confirmacion,
+        ];
+
+        const map = new Map();
+        combinedRaw.forEach((p) => {
+          if (p?.id) map.set(p.id, p);
+        });
+        const uniquePedidos = Array.from(map.values());
+
+        // enriquecer con ofertas (buscar oferta de esta farmacia)
+        const pedidosEnriquecidos = await Promise.all(
+          uniquePedidos.map(async (pedido) => {
+            try {
+              const ofertas = await listOfertasForPedido(pedido.id);
+              const ofertaAsociada = (ofertas || []).find((of) => of?.farmaciaId === farmaciaId);
+              return { pedido, oferta: ofertaAsociada || null };
+            } catch (err) {
+              console.warn("Error enriqueciendo pedido:", pedido?.id, err);
+              return { pedido, oferta: null };
+            }
+          })
+        );
+
+        if (!mounted) return;
+        setPedidos(pedidosEnriquecidos);
+      } catch (error) {
+        console.error("Error procesando pedidos combinados:", error);
+        if (mounted) Alert.alert("Error", "No se pudieron cargar los pedidos pendientes.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    // helper para subscribirse a un estado y actualizar latestSnapshots
+    const makeListener = (estadoKey, estadoConst) => {
+      try {
+        const unsub = listenPedidosPorEstadoYFarmacia(estadoConst, farmaciaId, async (pedidosSnapshot) => {
+          latestSnapshots[estadoKey] = pedidosSnapshot || [];
+          await processCombined();
+        });
+        return unsub;
+      } catch (err) {
+        console.error(`Error creando listener para ${estadoConst}:`, err);
+        return null;
+      }
+    };
+
+    // crear listeners para todos los estados relevantes
+    const unsubscribes = [];
+    unsubscribes.push(makeListener("activo", ESTADOS_PEDIDO.ACTIVO));
+    unsubscribes.push(makeListener("en_preparacion", ESTADOS_PEDIDO.EN_PREPARACION));
+    unsubscribes.push(makeListener("en_camino", ESTADOS_PEDIDO.EN_CAMINO));
+    unsubscribes.push(makeListener("pendiente", ESTADOS_PEDIDO.PENDIENTE));
+    unsubscribes.push(makeListener("confirmacion", ESTADOS_PEDIDO.CONFIRMACION));
+
+    // cleanup
+    return () => {
+      mounted = false;
+      unsubscribes.forEach((u) => {
         try {
-          const ofertas = await listOfertasForPedido(pedido.id);
-          const ofertaAsociada = ofertas.find((of) => of.farmaciaId === farmaciaId);
-          return { pedido, oferta: ofertaAsociada || null };
-        } catch (err) {
-          console.warn("Error enriqueciendo pedido:", pedido.id, err);
-          return { pedido, oferta: null };
-        }
-      })
-    );
+          if (typeof u === "function") u();
+        } catch (e) {}
+      });
+    };
+  }, [farmaciaId]);
 
-    setPedidos(pedidosEnriquecidos);
-  } catch (error) {
-    console.error("Error procesando pedidos combinados:", error);
-    Alert.alert("Error", "No se pudieron cargar los pedidos pendientes.");
-  } finally {
-    setLoading(false);
-  }
-};
-
-// suscripciones separadas (una para ACTIVO y otra para CONFIRMACION)
-const unsubActivo = listenPedidosPorEstadoYFarmacia(
-  ESTADOS_PEDIDO.ACTIVO,
-  farmaciaId,
-  async (pedidosSnapshot) => {
-    latestSnapshots.activo = pedidosSnapshot || [];
-    await processCombined();
-  }
-);
-
-const unsubConfirmacion = listenPedidosPorEstadoYFarmacia(
-  ESTADOS_PEDIDO.CONFIRMACION,
-  farmaciaId,
-  async (pedidosSnapshot) => {
-    latestSnapshots.confirmacion = pedidosSnapshot || [];
-    await processCombined();
-  }
-);
-
-// devolvemos un unsubscribe que cancela ambas listeners
-const unsub = () => {
-  try { if (typeof unsubActivo === "function") unsubActivo(); } catch {}
-  try { if (typeof unsubConfirmacion === "function") unsubConfirmacion(); } catch {}
-};
-        return () => unsub();
-      }, []);
-
- 
   const handlePedidoEliminado = (pedidoId) => {
-    setPedidos((prev) => prev.filter((pedido) => pedido.id !== pedidoId));
+    // pedidos es [{ pedido, oferta }, ...]
+    setPedidos((prev) => prev.filter((p) => p?.pedido?.id !== pedidoId));
   };
 
   if (loading) {
@@ -94,25 +118,25 @@ const unsub = () => {
 
   return (
     <View style={styles.container}>
-  <Text style={styles.title}>Pedidos en Curso</Text>
+      <Text style={styles.title}>Pedidos en Curso</Text>
 
-  {pedidos.length > 0 ? (
-    <View style={styles.listContainer}>
-      {pedidos.map(({ pedido, oferta }) => (
-        <PedidoEnCursoCard
-          key={pedido.id}
-          pedidoData={pedido}
-          oferta={oferta}
-          onPedidoEliminado={handlePedidoEliminado} // 🔹 aquí se mantiene
-        />
-      ))}
+      {pedidos.length > 0 ? (
+        <View style={styles.listContainer}>
+          {pedidos.map(({ pedido, oferta }) => (
+            <PedidoEnCursoCard
+              key={pedido.id}
+              pedidoData={pedido}
+              oferta={oferta}
+              onPedidoEliminado={handlePedidoEliminado}
+            />
+          ))}
+        </View>
+      ) : (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.noPedidoText}>No hay pedidos en curso</Text>
+        </View>
+      )}
     </View>
-  ) : (
-    <View style={styles.emptyContainer}>
-      <Text style={styles.noPedidoText}>No hay pedidos en curso</Text>
-    </View>
-  )}
-</View>
   );
 }
 
@@ -154,5 +178,3 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
 });
-
-

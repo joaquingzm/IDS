@@ -1,59 +1,114 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
-import { theme } from '../styles/theme';
-import { Ionicons } from '@expo/vector-icons';
-import { auth } from '../firebase';
-import { ESTADOS_OFERTA, ESTADOS_PEDIDO } from '../dbConfig';
-import { listenOfertasDePedido, listenPedidosPorEstado } from "../utils/firestoreService";
+// OfertasUsuarioScreen.js (modificada)
+import React, { useState, useEffect, useRef } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+} from "react-native";
+import { theme } from "../styles/theme";
+import { Ionicons } from "@expo/vector-icons";
+import { auth } from "../firebase";
+import { CAMPOS_PEDIDO, ESTADOS_PEDIDO } from "../dbConfig";
+import { listenPedidosPorEstado, listenOfertasDePedido } from "../utils/firestoreService";
 import OfertaCard from "../components/OfertaCard";
 
 export default function OfertasUsuarioScreen({ navigation }) {
   const [pedidosConOfertas, setPedidosConOfertas] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // listeners por pedidoId
+  const listenersRef = useRef({}); // { [pedidoId]: unsubscribeFn }
+
   useEffect(() => {
     const currentUser = auth.currentUser;
-    if (!currentUser) return;
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
 
-    // 1️⃣ Escuchar los pedidos del usuario en tiempo real
-    const unsubPedidos = listenPedidosPorEstado(ESTADOS_PEDIDO.PENDIENTE, (pedidos) => {
-      const pedidosUsuario = pedidos.filter(p => p.userId === currentUser.uid);
+    const userId = currentUser.uid;
 
-      // Para evitar fugas, limpiamos listeners anteriores
-      pedidosConOfertas.forEach(p => p.unsub && p.unsub());
+    const unsubscribePedidos = listenPedidosPorEstado(
+      ESTADOS_PEDIDO.ENTRANTE,
+      (pedidosSnapshot = []) => {
+        const pedidosUsuario = (pedidosSnapshot || []).filter(
+          (p) => String(p?.[CAMPOS_PEDIDO.USER_ID]) === String(userId)
+        );
 
-      const nuevosPedidos = [];
-
-      pedidosUsuario.forEach((pedido) => {
-        // 2️⃣ Escuchar ofertas de ese pedido en tiempo real
-        const unsubOfertas = listenOfertasDePedido(pedido.id, (ofertas) => {
-          const ofertasPendientes = ofertas.filter(o => o.estado === ESTADOS_OFERTA.PENDIENTE);
-
-          setPedidosConOfertas(prev => {
-            const otros = prev.filter(p => p.id !== pedido.id);
-            return ofertasPendientes.length > 0
-              ? [...otros, { ...pedido, ofertas: ofertasPendientes }]
-              : otros; // si no tiene ofertas pendientes, lo saco
-          });
+        const nuevosIds = pedidosUsuario.map((p) => p.id);
+        // limpiar listeners de pedidos que ya no están
+        Object.keys(listenersRef.current).forEach((id) => {
+          if (!nuevosIds.includes(id)) {
+            listenersRef.current[id]?.();
+            delete listenersRef.current[id];
+            // también limpiar del estado local
+            setPedidosConOfertas((prev) => prev.filter((x) => x.id !== id));
+          }
         });
 
-        nuevosPedidos.push({ ...pedido, unsub: unsubOfertas });
-      });
+        // subscribir a cada pedido (solo si no tiene listener)
+        pedidosUsuario.forEach((pedido) => {
+          if (!listenersRef.current[pedido.id]) {
+            const unsub = listenOfertasDePedido(pedido.id, (ofertas = []) => {
+              // normalizar ofertas (asegurate que listenOfertasDePedido entregue array)
+              const ofertasDisponibles = ofertas || [];
 
-      setLoading(false);
-    });
+              setPedidosConOfertas((prev) => {
+                // si no quedan ofertas -> eliminar ese pedido del listado
+                if (!ofertasDisponibles || ofertasDisponibles.length === 0) {
+                  return prev.filter((x) => x.id !== pedido.id);
+                }
+
+                // reemplazar/insertar
+                const otros = prev.filter((x) => x.id !== pedido.id);
+                return [
+                  ...otros,
+                  {
+                    ...pedido,
+                    ofertas: ofertasDisponibles,
+                  },
+                ];
+              });
+            });
+
+            // guardar el unsubscribe si existe
+            if (typeof unsub === "function") listenersRef.current[pedido.id] = unsub;
+          }
+        });
+
+        setLoading(false);
+      }
+    );
 
     return () => {
-      unsubPedidos();
-      pedidosConOfertas.forEach(p => p.unsub && p.unsub());
+      if (typeof unsubscribePedidos === "function") unsubscribePedidos();
+      // limpiar listeners pendientes
+      Object.values(listenersRef.current).forEach((fn) => fn?.());
+      listenersRef.current = {};
     };
   }, []);
 
-  const contarOfertasTotales = () => {
-    return pedidosConOfertas.reduce((total, pedido) => total + pedido.ofertas.length, 0);
+  // callback cuando una oferta fue aceptada
+  const handleOfertaAceptada = (pedidoId, ofertaId) => {
+    // 1) desuscribir el listener de ese pedido (ya no necesitamos ofertas allí)
+    try {
+      if (listenersRef.current[pedidoId]) {
+        listenersRef.current[pedidoId]?.();
+        delete listenersRef.current[pedidoId];
+      }
+    } catch (e) {
+      console.warn("Error desuscribiendo listener onAccepted:", e);
+    }
+
+    // 2) quitar ese pedido del listado (desaparece inmediatamente)
+    setPedidosConOfertas((prev) => prev.filter((p) => p.id !== pedidoId));
   };
 
-  const renderPedidosConOfertas = () => {
+  const renderPedidos = () => {
     if (loading) {
       return <ActivityIndicator size="large" color={theme.colors.primary} />;
     }
@@ -62,25 +117,30 @@ export default function OfertasUsuarioScreen({ navigation }) {
       return (
         <View style={styles.emptyState}>
           <Ionicons name="cube-outline" size={64} color={theme.colors.mutedForeground} />
-          <Text style={styles.emptyText}>No tienes ofertas disponibles por ahora.</Text>
-          <Text style={styles.emptySubtext}>Cuando las farmacias hagan ofertas para tus pedidos, aparecerán aquí.</Text>
+          <Text style={styles.emptyText}>No tenés ofertas disponibles aún.</Text>
+          <Text style={styles.emptySubtext}>
+            Cuando una farmacia haga una oferta, aparecerá aquí.
+          </Text>
         </View>
       );
     }
 
-    return pedidosConOfertas.map(pedido => (
+    return pedidosConOfertas.map((pedido) => (
       <View key={pedido.id} style={styles.pedidoContainer}>
         <Text style={styles.pedidoTitle}>
-          Pedido del {pedido.fechaPedido?.toDate?.().toLocaleDateString() || 'Fecha no disponible'}
+          Pedido del{" "}
+          {pedido.fechaPedido?.toDate?.()?.toLocaleDateString?.() ||
+            pedido.fechaPedido ||
+            "Fecha no disponible"}
         </Text>
-        <Text style={styles.pedidoEstado}>Estado: {pedido.estado}</Text>
 
-        {pedido.ofertas.map(oferta => (
+        {pedido.ofertas.map((oferta) => (
           <OfertaCard
             key={oferta.id}
             oferta={oferta}
             pedidoId={pedido.id}
             pedidoData={pedido}
+            onAccepted={handleOfertaAceptada} // <-- aquí pasamos la callback
           />
         ))}
       </View>
@@ -89,107 +149,27 @@ export default function OfertasUsuarioScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mis Ofertas</Text>
       </View>
 
-      {/* Alerta simple */}
-      <View style={styles.alertBox}>
-        <Ionicons name="cube-outline" size={20} color={theme.colors.primary} />
-        <Text style={styles.alertText}>
-          {loading
-            ? "Cargando ofertas..."
-            : `Tienes ${contarOfertasTotales()} ofertas en ${pedidosConOfertas.length} pedidos`}
-        </Text>
-      </View>
-
-      {/* Listado de ofertas */}
-      <ScrollView style={styles.content}>{renderPedidosConOfertas()}</ScrollView>
+      <ScrollView style={styles.content}>{renderPedidos()}</ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    backgroundColor: theme.colors.primary,
-    paddingTop: 50,
-    paddingBottom: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backButton: {
-    padding: 8,
-    marginRight: theme.spacing.md,
-  },
-  headerTitle: {
-    fontSize: theme.typography.fontSize.xl,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.background,
-  },
-  content: {
-    padding: theme.spacing.md,
-  },
-  alertBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#eff6ff',
-    borderColor: '#dbeafe',
-    borderWidth: 1,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    marginHorizontal: theme.spacing.md,
-    marginTop: theme.spacing.md,
-  },
-  alertText: {
-    flex: 1,
-    marginLeft: theme.spacing.sm,
-    color: '#1e40af',
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: theme.colors.mutedForeground,
-    marginTop: 16,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  emptySubtext: {
-    textAlign: 'center',
-    color: theme.colors.mutedForeground,
-    marginTop: 8,
-    fontSize: 14,
-  },
-  pedidoContainer: {
-    marginBottom: theme.spacing.lg,
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.lg,
-  },
-  pedidoTitle: {
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.foreground,
-    marginBottom: 4,
-  },
-  pedidoEstado: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.mutedForeground,
-    marginBottom: theme.spacing.md,
-  },
+  safeArea: { flex: 1, backgroundColor: theme.colors.background },
+  header: { backgroundColor: theme.colors.primary, paddingTop: 50, paddingBottom: theme.spacing.md, paddingHorizontal: theme.spacing.md, flexDirection: "row", alignItems: "center" },
+  backButton: { padding: 8, marginRight: theme.spacing.md },
+  headerTitle: { fontSize: theme.typography.fontSize.xl, fontWeight: theme.typography.fontWeight.bold, color: theme.colors.background },
+  content: { padding: theme.spacing.md },
+  emptyState: { alignItems: "center", justifyContent: "center", paddingVertical: 60 },
+  emptyText: { textAlign: "center", color: theme.colors.mutedForeground, marginTop: 16, fontSize: 18, fontWeight: "600" },
+  emptySubtext: { textAlign: "center", color: theme.colors.mutedForeground, marginTop: 8, fontSize: 14 },
+  pedidoContainer: { marginBottom: theme.spacing.lg, padding: theme.spacing.md, backgroundColor: theme.colors.card, borderRadius: theme.borderRadius.lg },
+  pedidoTitle: { fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.bold, color: theme.colors.foreground, marginBottom: 4 },
 });

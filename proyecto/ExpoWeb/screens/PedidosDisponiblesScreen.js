@@ -1,29 +1,35 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { View, FlatList, ActivityIndicator, StyleSheet, Text } from "react-native";
 import { theme } from "../styles/theme";
-import PedidoDisponibleCard from "../components/PedidoDisponibleCard";
-import { listenPedidosPorEstado } from "../utils/firestoreService";
+import PedidoDisponibleCard from "../components/pedidoDisponibleCard";
+import { listenPedidosPorEstado, listOfertasForPedido, getFarmaciaById } from "../utils/firestoreService";
 import {
   ESTADOS_PEDIDO,
   CAMPOS_FARMACIA,
   CAMPOS_PEDIDO,
+  CAMPOS_OFERTA
 } from "../dbConfig"
 import { auth } from "../firebase";
-import { getFarmaciaById } from "../utils/firestoreService";
 
 export default function PedidosDisponiblesScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [farmacia, setFarmacia] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Obtener farmacia actual (la que está logueada) — usamos onAuthStateChanged para mayor fiabilidad
+  // ref para guardar listeners por pedidoId
+  // cada entry: { unsub?: fn, pollId?: number }
+  const offerListenersRef = useRef({});
+
+  // para asegurar que solo hacemos setLoading(false) una vez (primer snapshot)
+  const firstLoadedRef = useRef(false);
+
+  // Obtener farmacia actual
   useEffect(() => {
     let isMounted = true;
 
-    const fetchFarmacia = async (uid, email) => {
+    const fetchFarmacia = async (uid) => {
       try {
-        const data = await getFarmaciaById(uid); // debe devolver { id, ...fields } or null
-        // Normalizamos las posibles variantes del campo nombre
+        const data = await getFarmaciaById(uid);
         const nombre =
           data?.[CAMPOS_FARMACIA.NOMBRE] ??
           data?.nombre ??
@@ -34,15 +40,14 @@ export default function PedidosDisponiblesScreen() {
 
         const farmaciaNormalizada = data
           ? {
-            id: data.id ?? uid,
-            // garantizamos que exista la clave esperada por la app
-            [CAMPOS_FARMACIA.NOMBRE]: nombre ?? "Farmacia desconocida",
-            ...data,
-          }
+              id: data.id ?? uid,
+              [CAMPOS_FARMACIA.NOMBRE]: nombre ?? "Farmacia desconocida",
+              ...data,
+            }
           : {
-            id: uid ?? "unknown",
-            [CAMPOS_FARMACIA.NOMBRE]: "Farmacia desconocida",
-          };
+              id: uid ?? "unknown",
+              [CAMPOS_FARMACIA.NOMBRE]: "Farmacia desconocida",
+            };
 
         if (isMounted) setFarmacia(farmaciaNormalizada);
       } catch (err) {
@@ -60,7 +65,7 @@ export default function PedidosDisponiblesScreen() {
         if (isMounted) setFarmacia(null);
         return;
       }
-      fetchFarmacia(user.uid, user.email);
+      fetchFarmacia(user.uid);
     });
 
     return () => {
@@ -69,28 +74,197 @@ export default function PedidosDisponiblesScreen() {
     };
   }, []);
 
-  // Listener de pedidos por estado
-useEffect(() => {
-  const unsub = listenPedidosPorEstado(
-    ESTADOS_PEDIDO.ENTRANTE,
-    (items) => {
-      setLoading(true);
-
-      const pedidosFiltrados = items.filter((pedido) => {
-        const rechazadas = pedido[CAMPOS_PEDIDO.FARMACIAS_NO_OFERTARON] || [];
-        return !rechazadas.includes(farmacia?.id);
-      });
-
-      setPedidos(pedidosFiltrados);
+  // Effect principal: escuchar pedidos ENTRANTE y subscribir a ofertas por pedido
+  useEffect(() => {
+    if (!farmacia?.id) {
+      // si no hay farmacia (por ejemplo logout) limpiamos y salimos
+      setPedidos([]);
       setLoading(false);
+      return;
     }
-  );
 
-  return () => {
-    if (typeof unsub === "function") unsub();
-  };
-}, [farmacia]);
+    const farmaciaId = String(farmacia.id);
 
+    // helper para limpiar listener de un pedido
+    const clearListenerForPedido = (pedidoId) => {
+      const entry = offerListenersRef.current[pedidoId];
+      if (!entry) return;
+      try {
+        if (typeof entry.unsub === "function") entry.unsub();
+      } catch (e) {
+        console.warn("Error calling unsub:", e);
+      }
+      try {
+        if (entry.pollId) clearInterval(entry.pollId);
+      } catch (e) {
+        /* ignore */
+      }
+      delete offerListenersRef.current[pedidoId];
+    };
+
+    // handler que procesa ofertas (común)
+    const processOffersForPedido = (p, ofertasArray) => {
+      try {
+        const pedidoId = p.id;
+        const noOfertaron =
+          Array.isArray(p?.[CAMPOS_PEDIDO.FARMACIAS_NO_OFERTARON])
+            ? p[CAMPOS_PEDIDO.FARMACIAS_NO_OFERTARON].map(String)
+            : [];
+
+        // Si la farmacia marcó "no ofertar", eliminarlo si estaba
+        if (noOfertaron.includes(farmaciaId)) {
+          setPedidos((prev) => prev.filter((x) => x.id !== pedidoId));
+          return;
+        }
+
+        const yaOferto = Array.isArray(ofertasArray)
+          ? ofertasArray.some(
+              (of) => String(of?.[CAMPOS_OFERTA.FARMACIA_ID]) === farmaciaId
+            )
+          : false;
+
+        if (yaOferto) {
+          // si ya ofertó, eliminarlo de la lista (si estaba)
+          setPedidos((prev) => prev.filter((x) => x.id !== pedidoId));
+          return;
+        }
+
+        // Pasa los filtros → agregar/actualizar
+        setPedidos((prev) => {
+          // si ya está, reemplazar la versión anterior (mantener inmutabilidad)
+          const otros = prev.filter((x) => x.id !== pedidoId);
+          return [...otros, p];
+        });
+      } catch (err) {
+        console.error("Error procesando ofertas para pedido:", err);
+      }
+    };
+
+    // subscribe a pedidos
+    const unsubPedidos = listenPedidosPorEstado(ESTADOS_PEDIDO.ENTRANTE, async (items = []) => {
+      try {
+        // asegurar que items sea array (normalización mínima)
+        const listaPedidos = Array.isArray(items) ? items : [];
+
+        // ids actuales en snapshot
+        const snapshotIds = listaPedidos.map((p) => p.id);
+
+        // limpiar listeners de pedidos que ya no están en snapshot
+        Object.keys(offerListenersRef.current).forEach((id) => {
+          if (!snapshotIds.includes(id)) {
+            clearListenerForPedido(id);
+            // también eliminar del estado visual
+            setPedidos((prev) => prev.filter((x) => x.id !== id));
+          }
+        });
+
+        // para cada pedido del snapshot, asegurarse que tenemos listener
+        for (const p of listaPedidos) {
+          const pedidoId = p.id;
+          if (!pedidoId) continue;
+
+          // si ya tenemos listener, no lo re-creamos (pero podríamos querer refresh inmediato)
+          if (offerListenersRef.current[pedidoId]) {
+            // opcional: podríamos disparar una verificación inicial aquí si queremos
+            continue;
+          }
+
+          // intentamos registrar listener con listOfertasForPedido
+          try {
+            const maybeUnsub = listOfertasForPedido(pedidoId, (ofertasRealtime = []) => {
+              // si la función se comporta como listener, vendrá por aquí
+              const ofertasArr = Array.isArray(ofertasRealtime) ? ofertasRealtime : [];
+              processOffersForPedido(p, ofertasArr);
+            });
+
+            // si devuelve una función -> ok, es un unsub
+            if (typeof maybeUnsub === "function") {
+              offerListenersRef.current[pedidoId] = { unsub: maybeUnsub };
+            } else if (maybeUnsub && typeof maybeUnsub.then === "function") {
+              // si devolvió una Promise -> no es listener, es un one-shot: usamos polling fallback
+              try {
+                // primera carga inmediata
+                const initial = await maybeUnsub;
+                const ofertasArr = Array.isArray(initial) ? initial : [];
+                processOffersForPedido(p, ofertasArr);
+              } catch (err) {
+                console.error("Error obteniendo ofertas inicial (one-shot):", err);
+              }
+
+              // iniciar polling
+              const pollId = setInterval(async () => {
+                try {
+                  const newest = await listOfertasForPedido(pedidoId);
+                  const ofertasArr = Array.isArray(newest) ? newest : [];
+                  processOffersForPedido(p, ofertasArr);
+                } catch (err) {
+                  console.error("Error en polling de ofertas:", err);
+                }
+              }, 2500);
+
+              offerListenersRef.current[pedidoId] = { pollId };
+            } else {
+              // si no devolvió nada reconocible, intentamos tratarlo como Promise vía llamada aparte
+              try {
+                const maybeArray = await listOfertasForPedido(pedidoId);
+                const ofertasArr = Array.isArray(maybeArray) ? maybeArray : [];
+                processOffersForPedido(p, ofertasArr);
+
+                const pollId = setInterval(async () => {
+                  try {
+                    const newest = await listOfertasForPedido(pedidoId);
+                    const ofertasArr2 = Array.isArray(newest) ? newest : [];
+                    processOffersForPedido(p, ofertasArr2);
+                  } catch (err) {
+                    console.error("Error polling fallback:", err);
+                  }
+                }, 2500);
+
+                offerListenersRef.current[pedidoId] = { pollId };
+              } catch (err) {
+                console.error("listOfertasForPedido no devolvió unsub ni Promise:", err);
+              }
+            }
+          } catch (err) {
+            console.error("Error registrando listener de ofertas:", err);
+          }
+        }
+
+        // Si nunca habíamos marcado firstLoaded, ahora lo hacemos (evita loader infinito)
+        if (!firstLoadedRef.current) {
+          firstLoadedRef.current = true;
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Error en snapshot de pedidos ENTRANTE:", err);
+        // asegurar que el loader no quede pegado si hay error
+        if (!firstLoadedRef.current) {
+          firstLoadedRef.current = true;
+          setLoading(false);
+        }
+      }
+    });
+
+    // cleanup general del effect
+    return () => {
+      try {
+        if (typeof unsubPedidos === "function") unsubPedidos();
+      } catch (e) {}
+      // limpiar todos los listeners de ofertas
+      Object.keys(offerListenersRef.current).forEach((id) => clearListenerForPedido(id));
+      offerListenersRef.current = {};
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [farmacia]);
+
+  // Si loading -> mostrar loader
+  if (loading) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

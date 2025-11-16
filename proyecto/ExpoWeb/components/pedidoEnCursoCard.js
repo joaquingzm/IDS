@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,12 +10,33 @@ import {
 import { theme } from "../styles/theme";
 import { db } from "../firebase";
 import { doc, updateDoc } from "firebase/firestore";
-import { COLECCION_PEDIDO, CAMPOS_PEDIDO, ESTADOS_PEDIDO, CAMPOS_OFERTA } from "../dbConfig";
+import {
+  COLECCION_PEDIDO,
+  CAMPOS_PEDIDO,
+  ESTADOS_PEDIDO,
+  CAMPOS_OFERTA,
+} from "../dbConfig";
 
-export default function pedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminado }) {
-  const [pedido, setPedido] = useState(pedidoData);
+export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminado }) {
+  // Si pedidoData trae estado lo usamos; si no, mostramos EN_PREPARACION localmente.
+  const initialEstado =
+    pedidoData?.estado && String(pedidoData.estado).length > 0
+      ? pedidoData.estado
+      : ESTADOS_PEDIDO.EN_PREPARACION;
+
+  const [pedido, setPedido] = useState(pedidoData ? { ...pedidoData, estado: initialEstado } : { estado: initialEstado });
   const [expandido, setExpandido] = useState(false);
   const [procesando, setProcesando] = useState(false);
+
+  useEffect(() => {
+    // Mantener sincronizado con cambios externos en pedidoData (si vienen)
+    if (pedidoData && pedidoData.id !== pedido?.id) {
+      setPedido({ ...pedidoData, estado: pedidoData.estado ?? ESTADOS_PEDIDO.EN_PREPARACION });
+    } else if (pedidoData) {
+      // si el parent actualiza el pedidoData (p.e. por snapshot), actualizamos estado local
+      setPedido((prev) => ({ ...(prev || {}), ...(pedidoData || {}) }));
+    }
+  }, [pedidoData]);
 
   const safeClone = (obj) => {
     try {
@@ -25,74 +46,100 @@ export default function pedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
     }
   };
 
-  // Avanza estados locales/servidor:
-  // - Pendiente -> En camino -> Entregado -> (DB: CONFIRMACION) -> espera usuario
-  // No existe más "Finalizado" desde la farmacia; la confirmación final la hace el usuario (REALIZADO)
+  // Avanzar estado:
   const avanzarEstado = async () => {
-    if (procesando) return;
-    const estadoActual = pedido?.estado || pedidoData?.estado || "Pendiente";
+  if (procesando) return;
 
-    // si ya está en confirmacion o realizado o rechazado, no avanzar
-    if (
-      estadoActual === ESTADOS_PEDIDO.CONFIRMACION ||
-      estadoActual === ESTADOS_PEDIDO.REALIZADO ||
-      estadoActual === ESTADOS_PEDIDO.RECHAZADO
-    ) {
-      return;
-    }
+  const estadoActual = pedido?.estado ?? ESTADOS_PEDIDO.PENDIENTE;
 
-    // Determinamos siguiente estado lógico (solo para UI local)
-    const orden = ["Pendiente", "En camino", "Entregado"];
-    const idx = orden.indexOf(estadoActual);
-    const siguienteString = orden[idx + 1] || orden[orden.length - 1];
+  if (
+    estadoActual === ESTADOS_PEDIDO.CONFIRMACION ||
+    estadoActual === ESTADOS_PEDIDO.REALIZADO ||
+    estadoActual === ESTADOS_PEDIDO.RECHAZADO
+  ) {
+    return;
+  }
 
-    // Si siguiente es "Entregado" -> debemos marcar en DB CONFIRMACION y dejar esperando al usuario
-    const confirmar =
-      Platform.OS === "web"
-        ? window.confirm(`¿Marcar pedido como "${siguienteString}" y esperar confirmación del cliente?`)
-        : await new Promise((resolve) =>
-            Alert.alert(
-              "Confirmar",
-              `¿Marcar pedido como "${siguienteString}" y esperar confirmación del cliente?`,
-              [
-                { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
-                { text: "Aceptar", onPress: () => resolve(true) },
-              ],
-              { cancelable: true }
-            )
-          );
+  let siguienteEstado;
+  if (estadoActual === ESTADOS_PEDIDO.EN_PREPARACION) {
+    siguienteEstado = ESTADOS_PEDIDO.EN_CAMINO;
+  } else if (estadoActual === ESTADOS_PEDIDO.EN_CAMINO) {
+    siguienteEstado = ESTADOS_PEDIDO.CONFIRMACION;
+  } else {
+    siguienteEstado = ESTADOS_PEDIDO.EN_PREPARACION;
+  }
 
-    if (!confirmar) return;
-
-    setProcesando(true);
-
-    try {
-      // para "Entregado" actualizamos DB a ESTADOS_PEDIDO.CONFIRMACION
-      if (siguienteString === "Entregado") {
-        const base = pedido ?? pedidoData ?? {};
-        const pedidoRef = doc(db, COLECCION_PEDIDO, base.id);
-        await updateDoc(pedidoRef, {
-          [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.CONFIRMACION,
-        });
-
-        const newPedido = { ...safeClone(base), estado: ESTADOS_PEDIDO.CONFIRMACION };
-        setPedido(newPedido);
-        // no llamamos a onPedidoEliminado: se queda en lista esperando confirmación del usuario
-        if (Platform.OS === "web") window.alert("Pedido marcado como entregado. Esperando confirmación del cliente.");
-        else Alert.alert("Ok", "Pedido marcado como entregado. Esperando confirmación del cliente.");
-        return;
-      }
-
-      // si siguiente es "En camino" (o otros) sólo actualizamos UI local (como en tu flujo previo)
-      const newLocal = { ...(pedido ?? pedidoData ?? {}), estado: siguienteString };
-      setPedido(newLocal);
-    } catch (error) {
-      console.error("Error avanzando estado:", error);
-      Alert.alert("Error", "No se pudo avanzar el estado del pedido.");
-    } finally {
-      setProcesando(false);
-    }
+  const labelMap = {
+    [ESTADOS_PEDIDO.EN_PREPARACION]: "En preparación",
+    [ESTADOS_PEDIDO.EN_CAMINO]: "En camino",
+    [ESTADOS_PEDIDO.CONFIRMACION]: "Entregado (esperando confirmación)",
   };
+  const nextLabel = labelMap[siguienteEstado] ?? String(siguienteEstado);
+
+  const confirmar =
+    Platform.OS === "web"
+      ? window.confirm(`¿Marcar pedido como "${nextLabel}"?`)
+      : await new Promise((resolve) =>
+          Alert.alert(
+            "Confirmar",
+            `¿Marcar pedido como "${nextLabel}"?`,
+            [
+              { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
+              { text: "Aceptar", onPress: () => resolve(true) },
+            ],
+            { cancelable: true }
+          )
+        );
+
+  if (!confirmar) return;
+
+  setProcesando(true);
+
+  try {
+    const base = pedido ?? pedidoData ?? {};
+    const pedidoRef = doc(db, COLECCION_PEDIDO, base.id);
+
+    // -------------------------------
+    // 🔥 CAMPOS EXTRAS SEGÚN ESTADO
+    // -------------------------------
+    let camposExtra = {};
+
+    if (siguienteEstado === ESTADOS_PEDIDO.EN_CAMINO) {
+      camposExtra[CAMPOS_PEDIDO.FECHA_EN_CAMINO] = new Date();
+    }
+
+    if (siguienteEstado === ESTADOS_PEDIDO.CONFIRMACION) {
+      camposExtra[CAMPOS_PEDIDO.FECHA_ENTREGADO] = new Date();
+    }
+
+    // Actualizamos Firestore con estado + fechas si corresponde
+    await updateDoc(pedidoRef, {
+      [CAMPOS_PEDIDO.ESTADO]: siguienteEstado,
+      ...camposExtra,
+    });
+
+    const newLocal = {
+      ...(base || {}),
+      estado: siguienteEstado,
+      ...camposExtra,
+    };
+
+    setPedido(newLocal);
+
+    if (Platform.OS === "web") {
+      window.alert(`Pedido marcado como "${nextLabel}".`);
+    } else {
+      Alert.alert("Ok", `Pedido marcado como "${nextLabel}".`);
+    }
+  } catch (error) {
+    console.error("Error avanzando estado:", error);
+    if (Platform.OS === "web") window.alert("No se pudo avanzar el estado del pedido.");
+    else Alert.alert("Error", "No se pudo avanzar el estado del pedido.");
+  } finally {
+    setProcesando(false);
+  }
+};
+
 
   const cancelarPedido = async () => {
     if (procesando) return;
@@ -117,16 +164,18 @@ export default function pedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
     setProcesando(true);
     try {
       const base = pedido ?? pedidoData ?? {};
-      const newPedido = { ...safeClone(base), estado: "Rechazado" };
+      const pedidoRef = doc(db, COLECCION_PEDIDO, base.id);
 
-      const pedidoRef = doc(db, COLECCION_PEDIDO, newPedido.id);
       await updateDoc(pedidoRef, {
         [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.RECHAZADO,
       });
 
+      const newPedido = { ...safeClone(base), estado: ESTADOS_PEDIDO.RECHAZADO };
       setPedido(newPedido);
 
-      if (onPedidoEliminado) onPedidoEliminado(newPedido.id);
+      if (typeof onPedidoEliminado === "function") {
+        onPedidoEliminado(newPedido.id);
+      }
 
       if (Platform.OS === "web") window.alert("Pedido rechazado correctamente");
       else Alert.alert("Pedido rechazado", "Se marcó como rechazado correctamente");
@@ -143,8 +192,17 @@ export default function pedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
     `${pedido?.[CAMPOS_PEDIDO.NOMBRE_USUARIO] || ""} ${pedido?.[CAMPOS_PEDIDO.APELLIDO_USUARIO] || ""}`.trim() ||
     "Cliente no especificado";
   const direccion = pedido?.[CAMPOS_PEDIDO.DIRECCION] || "Dirección no especificada";
-  const monto = oferta?.[CAMPOS_OFERTA.MONTO] ? `$${oferta[CAMPOS_OFERTA.MONTO]}` : "Monto no especificado";
+  const monto = oferta?.[CAMPOS_OFERTA.MONTO] ? `${formatCurrencyLocal(oferta[CAMPOS_OFERTA.MONTO])}` : "Monto no especificado";
   const obraSocial = pedido?.[CAMPOS_PEDIDO.OBRASOCIAL] || "Obra social no especificada";
+
+  function formatCurrencyLocal(n) {
+    try {
+      const num = Number(n) || 0;
+      return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(num);
+    } catch {
+      return `$${n}`;
+    }
+  }
 
   const formatFecha = (f) => {
     try {
@@ -158,32 +216,45 @@ export default function pedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
     }
   };
 
-  // Mostrar texto amigable según estado real (usando constantes DB cuando corresponde)
-  const estadoReal = pedido?.estado ?? pedidoData?.estado ?? "Pendiente";
+  // Estado real actual
+  const estadoReal = pedido?.estado ?? pedidoData?.estado ?? ESTADOS_PEDIDO.EN_PREPARACION;
   const estadoLabel =
     estadoReal === ESTADOS_PEDIDO.CONFIRMACION
-      ? "Entregado, esperando confirmacion del cliente"
+      ? "Entregado, esperando confirmación del cliente"
       : estadoReal === ESTADOS_PEDIDO.REALIZADO
       ? "Entrega confirmada"
       : estadoReal === ESTADOS_PEDIDO.RECHAZADO
       ? "Rechazado"
-      : estadoReal; // para otros (Pendiente, En camino, etc.) mostramos tal cual
+      : estadoReal === ESTADOS_PEDIDO.EN_PREPARACION
+      ? "En preparación"
+      : estadoReal === ESTADOS_PEDIDO.EN_CAMINO
+      ? "En camino"
+      : estadoReal === ESTADOS_PEDIDO.PENDIENTE
+      ? "Pendiente"
+      : String(estadoReal);
+
+  // Cuando estamos en CONFIRMACION / REALIZADO / RECHAZADO: no mostramos botones
+  const botonesVisibles =
+    expandido &&
+    estadoReal !== ESTADOS_PEDIDO.CONFIRMACION &&
+    estadoReal !== ESTADOS_PEDIDO.REALIZADO &&
+    estadoReal !== ESTADOS_PEDIDO.RECHAZADO;
 
   return (
     <TouchableOpacity
       style={[
         styles.card,
-        (estadoReal === ESTADOS_PEDIDO.REALIZADO) && styles.cardFinalizado,
-        (estadoReal === ESTADOS_PEDIDO.RECHAZADO) && styles.cardCancelado,
+        estadoReal === ESTADOS_PEDIDO.REALIZADO && styles.cardFinalizado,
+        estadoReal === ESTADOS_PEDIDO.RECHAZADO && styles.cardCancelado,
         procesando && styles.cardProcesando,
       ]}
-      onPress={() => setExpandido(!expandido)}
+      onPress={() => setExpandido((s) => !s)}
       activeOpacity={0.8}
       disabled={procesando}
     >
       <View style={styles.infoContainer}>
         <Text style={styles.title}>
-          Pedido #{(pedido?.id ?? pedidoData?.id ?? "N/A").substring?.(0, 8) || "N/A"}
+          Pedido #{String(pedido?.id ?? pedidoData?.id ?? "N/A").substring(0, 8) || "N/A"}
         </Text>
 
         <View style={styles.detallesContainer}>
@@ -219,8 +290,8 @@ export default function pedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
         <Text
           style={[
             styles.estado,
-            estadoReal === "Pendiente" && { color: theme.colors.primary },
-            estadoReal === "En camino" && { color: theme.colors.secondaryForeground },
+            estadoReal === ESTADOS_PEDIDO.PENDIENTE && { color: theme.colors.primary },
+            estadoReal === ESTADOS_PEDIDO.EN_CAMINO && { color: theme.colors.secondaryForeground },
             estadoReal === ESTADOS_PEDIDO.CONFIRMACION && { color: theme.colors.secondaryForeground },
             estadoReal === ESTADOS_PEDIDO.REALIZADO && { color: theme.colors.success },
             estadoReal === ESTADOS_PEDIDO.RECHAZADO && { color: theme.colors.destructive },
@@ -229,31 +300,27 @@ export default function pedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
           Estado: {estadoLabel}
         </Text>
 
-        {/* botones: solo cuando no esté en confirmación/realizado/rechazado */}
-        {expandido &&
-          estadoReal !== ESTADOS_PEDIDO.CONFIRMACION &&
-          estadoReal !== ESTADOS_PEDIDO.REALIZADO &&
-          estadoReal !== ESTADOS_PEDIDO.RECHAZADO && (
-            <View style={styles.botonesContainer}>
-              <TouchableOpacity
-                style={[styles.boton, styles.botonPrimario]}
-                onPress={avanzarEstado}
-                disabled={procesando}
-              >
-                <Text style={styles.botonTexto}>
-                  {estadoReal === "Entregado" ? "Marcar entregado" : "Avanzar estado"}
-                </Text>
-              </TouchableOpacity>
+        {botonesVisibles && (
+          <View style={styles.botonesContainer}>
+            <TouchableOpacity
+              style={[styles.boton, styles.botonPrimario, procesando && { opacity: 0.7 }]}
+              onPress={avanzarEstado}
+              disabled={procesando}
+            >
+              <Text style={styles.botonTexto}>
+                {estadoReal === ESTADOS_PEDIDO.EN_CAMINO ? "Marcar entregado" : "Avanzar estado"}
+              </Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.boton, styles.botonSecundario]}
-                onPress={cancelarPedido}
-                disabled={procesando}
-              >
-                <Text style={styles.botonTexto}>Rechazar</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+            <TouchableOpacity
+              style={[styles.boton, styles.botonSecundario, procesando && { opacity: 0.7 }]}
+              onPress={cancelarPedido}
+              disabled={procesando}
+            >
+              <Text style={styles.botonTexto}>Rechazar</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );

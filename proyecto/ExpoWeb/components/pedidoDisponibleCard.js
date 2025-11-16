@@ -97,62 +97,44 @@ export default function PedidoDisponibleCard({ pedido, farmacia, tiempoEspera })
 
   // CONFIRMAR
  const handleConfirmarAceptar = async () => {
-  // Validación: al menos un item
-   if (items.length === 0) {
+  if (items.length === 0) {
     showAlert("error", { message: "La oferta debe tener al menos un medicamento." });
     return;
   }
 
-  // Validación: cada campo debe estar cargado
-  for (let i = 0; i < items.length; i++) {
-    const med = items[i].medicamento?.trim();
-    const monto = items[i].monto?.trim();
-const hayVacios = items.some(
-  (i) =>
-    !i.medicamento?.trim() ||
-    !i.monto?.trim()
-);
+  // Validaciones
+  const hayVacios = items.some(
+    (i) => !i.medicamento?.trim() || !i.monto?.trim()
+  );
+  if (hayVacios) {
+    showAlert("campos_incompletos");
+    return;
+  }
 
-if (hayVacios) {
-  showAlert("campos_incompletos");
-  return;
-}
-
-const hayNoNumericos = items.some((i) => isNaN(Number(i.monto)));
-
+  const hayNoNumericos = items.some((i) => isNaN(Number(i.monto)));
   if (hayNoNumericos) {
     showAlert("error", { message: "Uno o más montos no son números válidos." });
     return;
   }
 
-
-// Validar montos inválidos
- const hayMontosInvalidos = items.some(
-    (i) => Number(i.monto) <= 0
-  );
-
+  const hayMontosInvalidos = items.some((i) => Number(i.monto) <= 0);
   if (hayMontosInvalidos) {
     showAlert("error", { message: "Los montos deben ser mayores a 0." });
     return;
   }
 
-// Validar tiempo de espera
-
-if (!tiempoEsperaLocal || isNaN(Number(tiempoEsperaLocal)) || Number(tiempoEsperaLocal) <= 0) {
-  showAlert("campo_invalido", { message: "Por favor ingrese un tiempo de espera valido."});
-  return;
-}
+  if (!tiempoEsperaLocal || isNaN(Number(tiempoEsperaLocal)) || Number(tiempoEsperaLocal) <= 0) {
+    showAlert("campo_invalido", { message: "Por favor ingrese un tiempo de espera valido." });
+    return;
   }
 
   const medicamentosList = items.map((i) => i.medicamento.trim());
   const montosList = items.map((i) => Number(i.monto));
 
   try {
-    await updatePedido(pedido.id, {
-      [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.PENDIENTE,
-      [CAMPOS_PEDIDO.FARMACIA_ASIGNADA_ID]: farmaciaId,
-    });
+    // 🚫 YA NO SE MODIFICA EL PEDIDO (estado ni farmacia asignada)
 
+    // ✔ Crear oferta
     await crearOferta(pedido.id, {
       [CAMPOS_OFERTA.FARMACIA_ID]: farmaciaId || "",
       [CAMPOS_OFERTA.NOMBRE_FARMACIA]: farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "Farmacia desconocida",
@@ -162,14 +144,16 @@ if (!tiempoEsperaLocal || isNaN(Number(tiempoEsperaLocal)) || Number(tiempoEsper
       [CAMPOS_OFERTA.FECHA_OFERTA]: serverTimestamp(),
       [CAMPOS_OFERTA.ESTADO]: ESTADOS_OFERTA.PENDIENTE,
     });
-    
-    showAlert("oferta_success")
+
+    showAlert("oferta_success");
     setMostrarFormulario(false);
+
   } catch (error) {
-    console.error("Error al aceptar pedido:", error);
-    showAlert("error", {message:"Error al enviar oferta." })
+    console.error("Error al enviar oferta:", error);
+    showAlert("error", { message: "Error al enviar oferta." });
   }
 };
+
 
   const handleCancelarAceptar = () => {
     setMostrarFormulario(false);
@@ -177,10 +161,6 @@ if (!tiempoEsperaLocal || isNaN(Number(tiempoEsperaLocal)) || Number(tiempoEsper
 
 const handleRechazar = async () => {
   try {
-    // 1️⃣ Buscamos si ESTA farmacia ya tiene oferta creada
-  
-
-    // 3️⃣ SI EXISTE: la actualizamos
     await updatePedido(pedido.id, {
       [CAMPOS_PEDIDO.FARMACIAS_NO_OFERTARON]: arrayUnion(farmaciaId),
     });
@@ -192,6 +172,7 @@ const handleRechazar = async () => {
     showAlert("error", { message: "Error al rechazar el pedido." });
   }
 };
+
 
   // DATOS DEL PEDIDO
   const nombre = pedido[CAMPOS_PEDIDO.NOMBRE_USUARIO] || "No especificado";

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import { CAMPOS_FARMACIA, CAMPOS_OFERTA, CAMPOS_PEDIDO, COLECCION_PEDIDO, ESTADO
 import { db } from "../firebase";
 import { doc, updateDoc } from "firebase/firestore";
 
-export default function PedidoUsuarioCard({ pedido, oferta, farmacia }) {
+export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [estado, setEstado] = useState("");
   const [nombreFarmacia, setNombreFarmacia] = useState("-");
@@ -24,6 +24,39 @@ export default function PedidoUsuarioCard({ pedido, oferta, farmacia }) {
   const [imagen, setImagen] = useState(null);
   const [procesando, setProcesando] = useState(false);
 
+  // --- Helpers para montos (copiados/adaptados de tu OfertaCard) ---
+  const parseMonto = (value) => {
+    if (value == null || value === "") return 0;
+    if (typeof value === "number") return value;
+    const s = String(value).trim();
+    if (s === "") return 0;
+    if (s.includes(",") && s.includes(".")) {
+      return Number(s.replace(/\./g, "").replace(",", ".")) || 0;
+    }
+    if (s.includes(",") && !s.includes(".")) {
+      return Number(s.replace(",", ".")) || 0;
+    }
+    if (s.includes(" ")) {
+      return Number(s.replace(/\s/g, "")) || 0;
+    }
+    return Number(s) || 0;
+  };
+
+  const formatCurrency = (value) => {
+    const n = Number(value) || 0;
+    try {
+      return new Intl.NumberFormat("es-AR", {
+        style: "currency",
+        currency: "ARS",
+        maximumFractionDigits: 2,
+      }).format(n);
+    } catch {
+      return `$${n.toFixed(2)}`;
+    }
+  };
+  // ---------------------------------------------------------------
+
+  // ---- IMPORTANT: ahora dependemos también de "ofertas" para que actualice en vivo ----
   useEffect(() => {
     if (!pedido) {
       setEstado("");
@@ -34,6 +67,7 @@ export default function PedidoUsuarioCard({ pedido, oferta, farmacia }) {
       return;
     }
 
+    // Fecha
     const fechaRaw = pedido?.[CAMPOS_PEDIDO.FECHA_PEDIDO];
     let fechaTexto = "Sin fecha";
     if (fechaRaw) {
@@ -52,20 +86,32 @@ export default function PedidoUsuarioCard({ pedido, oferta, farmacia }) {
     }
     setFechaPedido(fechaTexto);
 
+    // Imagen
     const img = pedido?.[CAMPOS_PEDIDO.IMAGEN] || null;
     setImagen(img);
 
     const estadoRaw = pedido?.[CAMPOS_PEDIDO.ESTADO];
+    // NUEVA LÓGICA: si está ENTRANTE evaluamos la cantidad de ofertas actuales
     if (estadoRaw === ESTADOS_PEDIDO.ENTRANTE) {
-      setEstado(ESTADOS_PEDIDO.ENTRANTE);
+      const cantOfertas = Array.isArray(ofertas) ? ofertas.length : 0;
+
+      if (cantOfertas === 0) {
+        setEstado("ENTRANTE_SIN_OFERTAS"); // pseudo-estado interno
+      } else {
+        setEstado("ENTRANTE_CON_OFERTAS"); // pseudo-estado interno
+      }
+
       setNombreFarmacia("-");
       setMedicamento("-");
-    } else if (estadoRaw === ESTADOS_PEDIDO.PENDIENTE) {
-      setEstado(ESTADOS_PEDIDO.PENDIENTE);
-      setNombreFarmacia("-");
-      setMedicamento("-");
+    } else if (estadoRaw === ESTADOS_PEDIDO.EN_PREPARACION) {
+      setEstado(ESTADOS_PEDIDO.EN_PREPARACION);
+      setNombreFarmacia(farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "-");
+      setMedicamento(oferta?.[CAMPOS_OFERTA.MEDICAMENTO] || "-");
+    } else if (estadoRaw === ESTADOS_PEDIDO.EN_CAMINO) {
+      setEstado(ESTADOS_PEDIDO.EN_CAMINO);
+      setNombreFarmacia(farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "-");
+      setMedicamento(oferta?.[CAMPOS_OFERTA.MEDICAMENTO] || "-");
     } else if (estadoRaw === ESTADOS_PEDIDO.CONFIRMACION) {
-      // cuando la farmacia marcó entregado y espera confirmación
       setEstado(ESTADOS_PEDIDO.CONFIRMACION);
       setNombreFarmacia(farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "-");
       setMedicamento(oferta?.[CAMPOS_OFERTA.MEDICAMENTO] || "-");
@@ -79,7 +125,7 @@ export default function PedidoUsuarioCard({ pedido, oferta, farmacia }) {
       setNombreFarmacia(farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "-");
       setMedicamento(oferta?.[CAMPOS_OFERTA.MEDICAMENTO] || "-");
     }
-  }, [pedido, oferta, farmacia]);
+  }, [pedido, oferta, farmacia, ofertas]); // <-- aquí incluimos "ofertas"
 
   const confirmarEntrega = async () => {
     if (procesando) return;
@@ -120,17 +166,52 @@ export default function PedidoUsuarioCard({ pedido, oferta, farmacia }) {
     }
   };
 
+  // --- Preparación de filas de medicamentos para mostrar en ACTIVO ---
+  const medicamentosList = Array.isArray(oferta?.[CAMPOS_OFERTA.MEDICAMENTO])
+    ? oferta[CAMPOS_OFERTA.MEDICAMENTO]
+    : oferta?.[CAMPOS_OFERTA.MEDICAMENTO]
+    ? [oferta[CAMPOS_OFERTA.MEDICAMENTO]]
+    : [];
+
+  const montosList = Array.isArray(oferta?.[CAMPOS_OFERTA.MONTO])
+    ? oferta[CAMPOS_OFERTA.MONTO]
+    : oferta?.[CAMPOS_OFERTA.MONTO]
+    ? [oferta[CAMPOS_OFERTA.MONTO]]
+    : [];
+
+  const rows = useMemo(() => {
+    const maxLen = Math.max(medicamentosList.length, montosList.length);
+    return Array.from({ length: maxLen }).map((_, i) => {
+      const raw = montosList[i];
+      const montoNum = parseMonto(raw);
+      return {
+        medicamento: medicamentosList[i] ?? "—",
+        montoRaw: raw ?? 0,
+        montoNum,
+      };
+    });
+  }, [medicamentosList.join?.("|") ?? medicamentosList, montosList.join?.("|") ?? montosList]);
+
+  const total = useMemo(() => rows.reduce((acc, r) => acc + (Number(r.montoNum) || 0), 0), [rows]);
+
+  const ofertasCount = Array.isArray(ofertas) ? ofertas.length : 0;
+
   return (
     <View style={styles.card}>
       <View style={styles.infoContainer}>
-        {estado === ESTADOS_PEDIDO.ENTRANTE && <Text style={styles.title}>Esperando ofertas.</Text>}
-        {estado === ESTADOS_PEDIDO.PENDIENTE && <Text style={styles.title}>Esperando confirmacion.</Text>}
-        {(estado === ESTADOS_PEDIDO.ACTIVO || estado === ESTADOS_PEDIDO.CONFIRMACION) && (
-          <Text style={styles.title}>
-            {estado === ESTADOS_PEDIDO.CONFIRMACION ? "En preparación (entregado por la farmacia)" : "En preparación."}
-          </Text>
+        {/* ENTRENTE SIN OFERTAS */}
+        {estado === "ENTRANTE_SIN_OFERTAS" && (
+          <Text style={styles.title}>Esperando ofertas.</Text>
         )}
-        {estado === ESTADOS_PEDIDO.REALIZADO && <Text style={styles.title}>Entrega confirmada.</Text>}
+        {/* ENTRENTE CON OFERTAS (antes PENDIENTE) */}
+        {estado === "ENTRANTE_CON_OFERTAS" && (
+          <Text style={styles.title}>Hay ofertas disponibles.</Text>
+        )}
+        {/* YA NO EXISTE PENDIENTE */}
+        {estado === ESTADOS_PEDIDO.ACTIVO && <Text style={styles.title}>Activo.</Text>}
+        {estado === ESTADOS_PEDIDO.EN_PREPARACION && <Text style={styles.title}>En preparación.</Text>}
+        {estado === ESTADOS_PEDIDO.EN_CAMINO && <Text style={styles.title}>En camino.</Text>}
+        {estado === ESTADOS_PEDIDO.CONFIRMACION && <Text style={styles.title}>Entregado.</Text>}
 
         <View style={styles.imageRow}>
           <TouchableOpacity
@@ -149,26 +230,93 @@ export default function PedidoUsuarioCard({ pedido, oferta, farmacia }) {
           </TouchableOpacity>
         </View>
 
-        {estado === ESTADOS_PEDIDO.ENTRANTE && (
+        {/* SIN OFERTAS */}
+        {estado === "ENTRANTE_SIN_OFERTAS" && (
           <>
             <Text style={styles.text}>Tu pedido aún no recibió ofertas.</Text>
-            <Text style={styles.text}> {fechaPedido} </Text>
+            <Text style={styles.text}>{fechaPedido}</Text>
           </>
         )}
 
-        {estado === ESTADOS_PEDIDO.PENDIENTE && (
+        {/* CON OFERTAS */}
+        {estado === "ENTRANTE_CON_OFERTAS" && (
           <>
-            <Text style={styles.text}>Hay ofertas disponibles.</Text>
-            <Text style={styles.text}> {fechaPedido} </Text>
+            <Text style={styles.text}>
+              Hay{" "}
+              <Text style={styles.ofertasNumero}>
+                {ofertasCount}
+              </Text>{" "}
+              {ofertasCount === 1 ? "oferta" : "ofertas"} disponibles.
+            </Text>
+
+            <Text style={styles.text}>{fechaPedido}</Text>
           </>
         )}
 
         {estado === ESTADOS_PEDIDO.ACTIVO && (
           <>
-            <Text style={styles.text}>Tu pedido está en curso en la farmacia.</Text>
-            <Text style={styles.text}>Farmacia: {nombreFarmacia}</Text>
-            <Text style={styles.text}>Medicamento: {medicamento}</Text>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <Text style={styles.text}>Farmacia: {nombreFarmacia}</Text>
+
+              <View style={styles.totalRow}>
+                <Text style={styles.montoLabel}>Total</Text>
+                <Text style={styles.monto}>{formatCurrency(total)}</Text>
+              </View>
+            </View>
+
+            {/* Lista de medicamentos con precio a la derecha */}
+            <View style={styles.medicamentosContainer}>
+              <Text style={styles.medicamentosTitle}>Medicamentos ofrecidos:</Text>
+
+              {rows.map((r, idx) => (
+                <View key={idx} style={styles.medicamentoRow}>
+                  <Text style={styles.medicamentoName} numberOfLines={1}>
+                    {r.medicamento}
+                  </Text>
+                  <Text style={styles.medicamentoPrecio}>
+                    {formatCurrency(r.montoNum)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <Text style={styles.text}>{fechaPedido}</Text>
           </>
+        )}
+
+        {estado === ESTADOS_PEDIDO.EN_PREPARACION && (
+          <>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <Text style={styles.text}>Farmacia: {nombreFarmacia}</Text>
+
+              <View style={styles.totalRow}>
+                <Text style={styles.montoLabel}>Total</Text>
+                <Text style={styles.monto}>{formatCurrency(total)}</Text>
+              </View>
+            </View>
+
+            {/* Lista de medicamentos con precio a la derecha */}
+            <View style={styles.medicamentosContainer}>
+              <Text style={styles.medicamentosTitle}>Medicamentos ofrecidos:</Text>
+
+              {rows.map((r, idx) => (
+                <View key={idx} style={styles.medicamentoRow}>
+                  <Text style={styles.medicamentoName} numberOfLines={1}>
+                    {r.medicamento}
+                  </Text>
+                  <Text style={styles.medicamentoPrecio}>
+                    {formatCurrency(r.montoNum)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <Text style={styles.text}>{fechaPedido}</Text>
+          </>
+        )}
+
+        {estado === ESTADOS_PEDIDO.EN_CAMINO && (
+          <Text style={styles.text}>EN_CAMINO</Text>
         )}
 
         {estado === ESTADOS_PEDIDO.CONFIRMACION && (
@@ -286,4 +434,52 @@ const styles = StyleSheet.create({
     color: "#000000ff",
     fontWeight: "700",
   },
+  ofertasNumero: {
+    fontWeight: "bold",
+    color: theme.colors.primary,
+  },
+
+  /* --- Estilos añadidos para mostrar la lista como en OfertaCard --- */
+  medicamentosContainer: { marginBottom: theme.spacing.md },
+  medicamentosTitle: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.medium,
+    color: theme.colors.mutedForeground,
+    marginBottom: theme.spacing.xs,
+  },
+  medicamentoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: theme.spacing.xs,
+    borderBottomWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  medicamentoName: {
+    flex: 1,
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.foreground,
+    marginRight: theme.spacing.sm,
+  },
+  medicamentoPrecio: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.medium,
+    color: theme.colors.foreground,
+    textAlign: "right",
+    minWidth: 80,
+  },
+  totalRow: {
+    alignItems: "flex-end",
+    marginBottom: theme.spacing.sm,
+  },
+  montoLabel: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.mutedForeground,
+  },
+  monto: {
+    fontSize: theme.typography.fontSize.xl,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.primary,
+  },
+  /* --------------------------------------------------------------- */
 });

@@ -85,6 +85,12 @@ campo_invalido: {
   message: "Por favor, completá todos los campos antes de continuar.",
 },
 
+  confirm_accept_offer: {
+    title: "¿Aceptar oferta?",
+  },
+  // ...otros presets
+
+
 
   // Podemos hacer alertas con botones de esta manera
   confirmar_eliminar_pedido: {

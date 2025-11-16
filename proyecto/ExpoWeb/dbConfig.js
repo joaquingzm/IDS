@@ -71,7 +71,6 @@ export const CAMPOS_PEDIDO = {
   OFERTA_ACEPTADA_ID: "ofertaAceptadaId",
   FARMACIA_ASIGNADA_ID: "farmaciaAsignadaID",
   FECHA_ACEPTACION: "fechaAceptacion",
-  FECHA_PREPARACION: "fechaPreparacion",
   FECHA_EN_CAMINO: "fechaEnCamino",
   FECHA_ENTREGADO: "fechaEntregado",
   FECHA_COMPLETADO: "fechaCompletado",

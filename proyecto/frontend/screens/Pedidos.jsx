@@ -1,117 +1,320 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
 import { theme } from "../styles/theme";
 import PedidoUsuarioCard from "../components/PedidoCard";
 import { StatusCardButton } from "../components/StatusCardButton";
 import { auth } from "../firebase";
-import { CAMPOS_PEDIDO, CAMPOS_OFERTA, ESTADOS_PEDIDO, ESTADOS_OFERTA } from "../dbConfig";
+import {
+  CAMPOS_PEDIDO,
+  CAMPOS_OFERTA,
+  ESTADOS_PEDIDO,
+  ESTADOS_OFERTA,
+} from "../dbConfig";
 import firestoreService, { listenPedidosPorEstado } from "../utils/firestoreService";
+
+/**
+ * OfertsScreen (mejorada)
+ * - Suscribese a pedidos por estado (igual que antes)
+ * - Además crea una suscripción a las ofertas del pedido actual para mantener el contador en vivo
+ * - Si firestoreService.listenOfertasForPedido NO existe, usa polling como fallback
+ */
 
 export default function OfertsScreen({ navigation }) {
   const [pedidoActual, setPedidoActual] = useState(null);
   const [loading, setLoading] = useState(true);
   const firstLoaded = useRef(false); // evita setLoading(false) prematuro
 
+  // ref para el unsubscriber de ofertas y para el polling interval
+  const ofertasUnsubRef = useRef(null);
+  const ofertasPollingRef = useRef(null);
+
   useEffect(() => {
-  let unsubActivos = null;
-  let unsubEntrantes = null;
-  let unsubPendientes = null;
-  let unsubConfirmacion = null; // <-- nuevo
+    let unsubActivos = null;
+    let unsubEntrantes = null;
+    let unsubPendientes = null;
+    let unsubConfirmacion = null;
+    let unsubEnPreparacion = null;
+    let unsubEnCamino = null;
+    let mounted = true;
 
-  const subscribeToPedidos = async () => {
-    try {
-      const currentUserId = auth.currentUser?.uid;
-      if (!currentUserId) {
-        setPedidoActual(null);
-        setLoading(false);
-        return;
+    const normalizeSnapshotOrArray = (maybe) => {
+      if (!maybe) return [];
+      // QuerySnapshot (Firestore)
+      if (typeof maybe?.docs !== "undefined" && Array.isArray(maybe.docs)) {
+        return maybe.docs.map((d) => ({ id: d.id, ...d.data() }));
       }
-
-      const handlePedidos = async (pedidos, tipo) => {
+      // has .size and docs
+      if (typeof maybe?.size === "number" && Array.isArray(maybe.docs)) {
+        return maybe.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+      // plain array
+      if (Array.isArray(maybe)) return maybe;
+      // object keyed by id
+      if (typeof maybe === "object") {
         try {
-          // filtrá por user id
-          const pedidosUser = pedidos.filter(
-            (p) => p[CAMPOS_PEDIDO.USER_ID] === currentUserId
-          );
+          return Object.keys(maybe).map((k) => ({ id: k, ...maybe[k] }));
+        } catch (e) {
+          return [];
+        }
+      }
+      return [];
+    };
 
-          if (pedidosUser.length === 0) {
-            console.log(`[listen ${tipo}] No pedidos para el usuario`);
+    const handlePedidos = async (pedidos, tipo) => {
+      try {
+        const currentUserId = auth.currentUser?.uid;
+        if (!currentUserId) return;
+
+        const pedidosUser = (pedidos || []).filter(
+          (p) =>
+            String(p?.[CAMPOS_PEDIDO.USER_ID] ?? p?.userId ?? "") ===
+            String(currentUserId)
+        );
+
+        if (pedidosUser.length === 0) {
+          console.log(`[listen ${tipo}] No pedidos para el usuario`);
+          if (mounted) {
             setPedidoActual(null);
             if (!firstLoaded.current) {
               setLoading(false);
               firstLoaded.current = true;
             }
-            return;
           }
-
-          // Elegimos el primer pedido (podés cambiar lógica: ordenar por fecha etc)
-          const pedido = pedidosUser[0];
-          if (!pedido?.id) {
-            console.warn(`[listen ${tipo}] pedido sin id`);
-            return;
-          }
-
-          // Obtener ofertas y farmacia relacionadas
-          const ofertas = await firestoreService.listOfertasForPedido(pedido.id);
-          const ofertaSeleccionada = ofertas.find(
-            (of) => of[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.ACEPTADA
-          );
-
-          let farmacia = null;
-          if (ofertaSeleccionada?.farmaciaId) {
-            farmacia = await firestoreService.getFarmaciaById(ofertaSeleccionada.farmaciaId);
-          }
-
-          // seteo el pedido actual (object con pedido, farmacia y oferta)
-          setPedidoActual({ pedido, farmacia, ofertaSeleccionada });
-          console.log(`[listen ${tipo}] seteado pedidoActual id=${pedido.id}`);
-        } catch (err) {
-          console.error("handlePedidos error:", err);
-        } finally {
-          if (!firstLoaded.current) {
-            setLoading(false);
-            firstLoaded.current = true;
-          }
+          return;
         }
-      };
 
-      // subscripciones en tiempo real (ahora incluye CONFIRMACION)
-      unsubActivos = listenPedidosPorEstado(ESTADOS_PEDIDO.ACTIVO, (pedidos) =>
-        handlePedidos(pedidos, "ACTIVO")
-      );
-      unsubEntrantes = listenPedidosPorEstado(ESTADOS_PEDIDO.ENTRANTE, (pedidos) =>
-        handlePedidos(pedidos, "ENTRANTE")
-      );
-      unsubPendientes = listenPedidosPorEstado(ESTADOS_PEDIDO.PENDIENTE, (pedidos) =>
-        handlePedidos(pedidos, "PENDIENTE")
-      );
-      unsubConfirmacion = listenPedidosPorEstado(ESTADOS_PEDIDO.CONFIRMACION, (pedidos) =>
-        handlePedidos(pedidos, "CONFIRMACION")
-      ); // <-- nueva suscripción
-    } catch (error) {
-      Alert.alert("Error", "No se pudo cargar los pedidos en tiempo real.");
-      console.error(error);
-      setLoading(false);
+        const pedido = pedidosUser[0];
+        if (!pedido?.id) {
+          console.warn(`[listen ${tipo}] pedido sin id`);
+          return;
+        }
+
+        // Obtener ofertas iniciales (si no hay listener disponible luego lo reemplazamos por listener)
+        const ofertasPedido = await firestoreService.listOfertasForPedido(pedido.id);
+        const ofertasArr = normalizeSnapshotOrArray(ofertasPedido);
+
+        const ofertaSeleccionada = (ofertasArr || []).find(
+          (of) => of?.[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.ACEPTADA
+        );
+
+        let farmacia = null;
+        if (ofertaSeleccionada?.farmaciaId) {
+          farmacia = await firestoreService.getFarmaciaById(
+            ofertaSeleccionada.farmaciaId
+          );
+        }
+
+        if (!mounted) return;
+
+        // setEAR pedidoActual con ofertas iniciales
+        setPedidoActual({
+          pedido,
+          farmacia,
+          ofertaSeleccionada,
+          ofertas: ofertasArr || [],
+        });
+
+        console.log(`[listen ${tipo}] seteado pedidoActual id=${pedido.id}`);
+      } catch (err) {
+        console.error("handlePedidos error:", err);
+      } finally {
+        if (mounted && !firstLoaded.current) {
+          setLoading(false);
+          firstLoaded.current = true;
+        }
+      }
+    };
+
+    const subscribeToPedidos = () => {
+      try {
+        // === SUBSCRIPCIONES ===
+        unsubActivos = listenPedidosPorEstado(
+          ESTADOS_PEDIDO.ACTIVO,
+          (pedidos) => handlePedidos(pedidos, "ACTIVO")
+        );
+
+        unsubEntrantes = listenPedidosPorEstado(
+          ESTADOS_PEDIDO.ENTRANTE,
+          (pedidos) => handlePedidos(pedidos, "ENTRANTE")
+        );
+
+        unsubPendientes = listenPedidosPorEstado(
+          ESTADOS_PEDIDO.PENDIENTE,
+          (pedidos) => handlePedidos(pedidos, "PENDIENTE")
+        );
+
+        if (ESTADOS_PEDIDO.CONFIRMACION) {
+          unsubConfirmacion = listenPedidosPorEstado(
+            ESTADOS_PEDIDO.CONFIRMACION,
+            (pedidos) => handlePedidos(pedidos, "CONFIRMACION")
+          );
+        }
+
+        // === NUEVOS ESTADOS ===
+        unsubEnPreparacion = listenPedidosPorEstado(
+          ESTADOS_PEDIDO.EN_PREPARACION,
+          (pedidos) => handlePedidos(pedidos, "EN_PREPARACION")
+        );
+
+        unsubEnCamino = listenPedidosPorEstado(
+          ESTADOS_PEDIDO.EN_CAMINO,
+          (pedidos) => handlePedidos(pedidos, "EN_CAMINO")
+        );
+      } catch (error) {
+        console.error(error);
+        if (mounted) {
+          Alert.alert("Error", "No se pudo cargar los pedidos en tiempo real.");
+          setLoading(false);
+        }
+      }
+    };
+
+    subscribeToPedidos();
+
+    return () => {
+      mounted = false;
+      try { if (typeof unsubActivos === "function") unsubActivos(); } catch {}
+      try { if (typeof unsubEntrantes === "function") unsubEntrantes(); } catch {}
+      try { if (typeof unsubPendientes === "function") unsubPendientes(); } catch {}
+      try { if (typeof unsubConfirmacion === "function") unsubConfirmacion(); } catch {}
+      try { if (typeof unsubEnPreparacion === "function") unsubEnPreparacion(); } catch {}
+      try { if (typeof unsubEnCamino === "function") unsubEnCamino(); } catch {}
+
+      // limpiar ofertas listener/polling si quedaron
+      try { if (typeof ofertasUnsubRef.current === "function") ofertasUnsubRef.current(); } catch {}
+      try { if (ofertasPollingRef.current) clearInterval(ofertasPollingRef.current); } catch {}
+    };
+  }, []);
+
+  /**
+   * Cuando cambia el pedidoActual, suscribirse a las ofertas de ese pedido
+   * (o usar polling si no hay función de listener en firestoreService)
+   */
+  useEffect(() => {
+    // limpiar subs previas
+    try { if (typeof ofertasUnsubRef.current === "function") ofertasUnsubRef.current(); } catch {}
+    try { if (ofertasPollingRef.current) { clearInterval(ofertasPollingRef.current); ofertasPollingRef.current = null; } } catch {}
+
+    const normalizeSnapshotOrArray = (maybe) => {
+      if (!maybe) return [];
+      if (typeof maybe?.docs !== "undefined" && Array.isArray(maybe.docs)) {
+        return maybe.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+      if (typeof maybe?.size === "number" && Array.isArray(maybe.docs)) {
+        return maybe.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+      if (Array.isArray(maybe)) return maybe;
+      if (typeof maybe === "object") {
+        try {
+          return Object.keys(maybe).map((k) => ({ id: k, ...maybe[k] }));
+        } catch (e) {
+          return [];
+        }
+      }
+      return [];
+    };
+
+    const pedidoId = pedidoActual?.pedido?.id;
+    if (!pedidoId) {
+      // nada que escuchar
+      return;
     }
-  };
 
-  subscribeToPedidos();
+    let mounted = true;
 
-  return () => {
-    if (unsubActivos) unsubActivos();
-    if (unsubEntrantes) unsubEntrantes();
-    if (unsubPendientes) unsubPendientes();
-    if (unsubConfirmacion) unsubConfirmacion(); // <-- cleanup
-  };
-}, []);
+    // handler reutilizable para actualizar el state
+    const handleOfertasUpdate = async (rawOfertas) => {
+      try {
+        if (!mounted) return;
+        const ofertasArr = normalizeSnapshotOrArray(rawOfertas);
 
+        const ofertaSeleccionada = (ofertasArr || []).find(
+          (of) => of?.[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.ACEPTADA
+        );
+
+        let farmacia = pedidoActual?.farmacia ?? null;
+        if (ofertaSeleccionada?.farmaciaId) {
+          farmacia = await firestoreService.getFarmaciaById(ofertaSeleccionada.farmaciaId);
+        }
+
+        // Actualizar pedidoActual de forma segura (siempre nueva referencia)
+        setPedidoActual((prev) => {
+          // si prev es null o otro pedido, reemplazamos
+          if (!prev || prev.pedido?.id !== pedidoId) {
+            return {
+              pedido: prev?.pedido ?? { id: pedidoId }, // fallback mínimo
+              ofertaSeleccionada,
+              ofertas: ofertasArr,
+              farmacia,
+            };
+          }
+          return {
+            ...prev,
+            ofertaSeleccionada,
+            ofertas: ofertasArr,
+            farmacia,
+          };
+        });
+      } catch (e) {
+        console.error("handleOfertasUpdate error", e);
+      }
+    };
+
+    // --- Si existe listener en firestoreService lo usamos ---
+    if (typeof firestoreService.listenOfertasForPedido === "function") {
+      try {
+        const unsub = firestoreService.listenOfertasForPedido(pedidoId, (snapOrArray) => {
+          handleOfertasUpdate(snapOrArray);
+        });
+        ofertasUnsubRef.current = typeof unsub === "function" ? unsub : null;
+        console.log("Subscribed to ofertas for pedido", pedidoId);
+      } catch (e) {
+        console.warn("listenOfertasForPedido falló, usaremos polling:", e);
+      }
+    }
+
+    // --- Fallback: polling cada 2500ms (si no hay listener) ---
+    if (!ofertasUnsubRef.current) {
+      (async () => {
+        try {
+          // primera carga inmediata
+          const initial = await firestoreService.listOfertasForPedido(pedidoId);
+          await handleOfertasUpdate(initial);
+        } catch (e) {
+          console.error("error loading initial ofertas (polling fallback)", e);
+        }
+
+        ofertasPollingRef.current = setInterval(async () => {
+          try {
+            const newest = await firestoreService.listOfertasForPedido(pedidoId);
+            await handleOfertasUpdate(newest);
+          } catch (e) {
+            console.error("polling ofertas error", e);
+          }
+        }, 2500); // 2.5s; podés ajustar
+      })();
+    }
+
+    return () => {
+      mounted = false;
+      try { if (typeof ofertasUnsubRef.current === "function") ofertasUnsubRef.current(); ofertasUnsubRef.current = null; } catch {}
+      try { if (ofertasPollingRef.current) { clearInterval(ofertasPollingRef.current); ofertasPollingRef.current = null; } } catch {}
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pedidoActual?.pedido?.id]);
 
   return (
     <ScrollView
-      contentContainerStyle={{
-        flexGrow: 1,
-        backgroundColor: theme.colors.background,
-      }}
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
+      contentContainerStyle={{ paddingBottom: 100 }}
+      showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
         <Text style={styles.headerTitle}>RappiFarma</Text>
@@ -124,11 +327,11 @@ export default function OfertsScreen({ navigation }) {
         {loading ? (
           <ActivityIndicator size="large" color={theme.colors.primary} />
         ) : pedidoActual ? (
-          // añadí key para forzar remount cuando cambie el id
           <PedidoUsuarioCard
             key={pedidoActual.pedido.id}
             pedido={pedidoActual.pedido}
             oferta={pedidoActual.ofertaSeleccionada}
+            ofertas={pedidoActual.ofertas}
             farmacia={pedidoActual.farmacia}
           />
         ) : (
