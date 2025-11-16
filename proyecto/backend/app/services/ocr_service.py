@@ -11,13 +11,16 @@ def preprocess_image(img):
     # # clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
     # # gray = clahe.apply(gray)
 
+    den = cv2.bilateralFilter(gray, 7, 50, 50)
+    blurred = cv2.GaussianBlur(den, (3, 3), 0)
+
 
     # # Binarizar
-    # _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    # _, bin = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    img = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
-    # cv2.imshow("Original", img)
-    # cv2.waitKey(0)
+    img = cv2.cvtColor(blurred, cv2.COLOR_GRAY2BGR)
+    cv2.imshow("Original", img)
+    cv2.waitKey(0)
     return img
 
 def extract_text_from_image(img):

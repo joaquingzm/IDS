@@ -376,9 +376,16 @@ if __name__ == "__main__":
 
     from services.vademecum_loader import get_vademecum
     from services.ocr_service import extract_text_from_image
+    import os
+    import cv2
 
-    IMG_NAME, IMG_EXTENSION = "receta3", ".jpeg"
-    ocr_tuples = extract_text_from_image(IMG_NAME, IMG_EXTENSION)  
+    IMG_NAME, IMG_EXT = "receta7", ".jpeg"
+
+    img_path = os.path.join('resources', IMG_NAME + IMG_EXT)
+
+    img = cv2.imread(img_path)
+
+    ocr_tuples = extract_text_from_image(img)  
     palabras_ocr = [t for t,_ in ocr_tuples]
     ocr_confs = [c for _,c in ocr_tuples]
     norm_lines = [normalize_line(ln) for ln in palabras_ocr]

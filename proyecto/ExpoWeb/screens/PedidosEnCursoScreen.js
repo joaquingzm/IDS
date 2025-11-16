@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, FlatList, ActivityIndicator, StyleSheet, Text } from "react-native";
 import { theme } from "../styles/theme";
-import PedidoEnCursoCard from "../components/pedidoEnCursoCard";
+import PedidoEnCursoCard from "../components/PedidoEnCursoCard";
 import { listenPedidosPorEstado } from "../utils/firestoreService";
 import { ESTADOS_PEDIDO } from "../dbConfig";
 import { auth } from "../firebase";
