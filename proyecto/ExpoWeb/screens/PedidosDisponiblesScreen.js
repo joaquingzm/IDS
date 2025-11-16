@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, FlatList, ActivityIndicator, StyleSheet, Text } from "react-native";
 import { theme } from "../styles/theme";
-import PedidoDisponibleCard from "../components/PedidoDisponibleCard";
+import PedidoDisponibleCard from "../components/pedidoDisponibleCard";
 import { listenPedidosPorEstado } from "../utils/firestoreService";
 import {
   ESTADOS_PEDIDO,
