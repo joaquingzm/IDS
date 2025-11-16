@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from "react-native";
 import { theme } from "../styles/theme";
-import HistorialCard from "../components/PedidoHistorialCard";
+import HistorialCard from "../components/pedidoHistorialCard";
 import { auth } from "../firebase";
 import { CAMPOS_PEDIDO, ESTADOS_PEDIDO, CAMPOS_OFERTA, ESTADOS_OFERTA } from "../dbConfig";
 import * as firestoreService from "../utils/firestoreService";

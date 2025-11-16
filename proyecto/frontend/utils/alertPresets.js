@@ -71,6 +71,18 @@ pedido_success: {
   message: "Sesión cerrada correctamente.",
 },
 
+pedido_recibido_error: {
+  type: "toast",
+  preset: "error",
+  title: "Error recibiendo el pedido.",
+},
+
+pedido_recibido_success: {
+  type: "toast",
+  preset: "done",
+  title: "Pedido recibido exitosamente.",
+},
+
 campo_invalido: {
     type: "toast",
     preset: "error",
@@ -87,6 +99,10 @@ campo_invalido: {
 
   confirm_accept_offer: {
     title: "¿Aceptar oferta?",
+  },
+
+  confirm_entrega: {
+    title: "¿Confirmar entrega?",
   },
   // ...otros presets
 

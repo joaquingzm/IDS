@@ -1,3 +1,4 @@
+// OfertsScreen.js (filtrada a ENTRANTE, EN_PREPARACION, EN_CAMINO, CONFIRMACION)
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -20,10 +21,9 @@ import {
 import firestoreService, { listenPedidosPorEstado } from "../utils/firestoreService";
 
 /**
- * OfertsScreen (mejorada)
- * - Suscribese a pedidos por estado (igual que antes)
- * - Además crea una suscripción a las ofertas del pedido actual para mantener el contador en vivo
- * - Si firestoreService.listenOfertasForPedido NO existe, usa polling como fallback
+ * OfertsScreen (modificada)
+ * - Solo escucha pedidos en los estados ENTRANTE, EN_PREPARACION, EN_CAMINO, CONFIRMACION
+ * - Mantiene suscripción a ofertas del pedidoActual (listener o polling fallback)
  */
 
 export default function OfertsScreen({ navigation }) {
@@ -36,12 +36,10 @@ export default function OfertsScreen({ navigation }) {
   const ofertasPollingRef = useRef(null);
 
   useEffect(() => {
-    let unsubActivos = null;
     let unsubEntrantes = null;
-    let unsubPendientes = null;
-    let unsubConfirmacion = null;
     let unsubEnPreparacion = null;
     let unsubEnCamino = null;
+    let unsubConfirmacion = null;
     let mounted = true;
 
     const normalizeSnapshotOrArray = (maybe) => {
@@ -134,30 +132,12 @@ export default function OfertsScreen({ navigation }) {
 
     const subscribeToPedidos = () => {
       try {
-        // === SUBSCRIPCIONES ===
-        unsubActivos = listenPedidosPorEstado(
-          ESTADOS_PEDIDO.ACTIVO,
-          (pedidos) => handlePedidos(pedidos, "ACTIVO")
-        );
-
+        // Suscribimos SOLO a los estados que te interesan:
         unsubEntrantes = listenPedidosPorEstado(
           ESTADOS_PEDIDO.ENTRANTE,
           (pedidos) => handlePedidos(pedidos, "ENTRANTE")
         );
 
-        unsubPendientes = listenPedidosPorEstado(
-          ESTADOS_PEDIDO.PENDIENTE,
-          (pedidos) => handlePedidos(pedidos, "PENDIENTE")
-        );
-
-        if (ESTADOS_PEDIDO.CONFIRMACION) {
-          unsubConfirmacion = listenPedidosPorEstado(
-            ESTADOS_PEDIDO.CONFIRMACION,
-            (pedidos) => handlePedidos(pedidos, "CONFIRMACION")
-          );
-        }
-
-        // === NUEVOS ESTADOS ===
         unsubEnPreparacion = listenPedidosPorEstado(
           ESTADOS_PEDIDO.EN_PREPARACION,
           (pedidos) => handlePedidos(pedidos, "EN_PREPARACION")
@@ -166,6 +146,11 @@ export default function OfertsScreen({ navigation }) {
         unsubEnCamino = listenPedidosPorEstado(
           ESTADOS_PEDIDO.EN_CAMINO,
           (pedidos) => handlePedidos(pedidos, "EN_CAMINO")
+        );
+
+        unsubConfirmacion = listenPedidosPorEstado(
+          ESTADOS_PEDIDO.CONFIRMACION,
+          (pedidos) => handlePedidos(pedidos, "CONFIRMACION")
         );
       } catch (error) {
         console.error(error);
@@ -180,12 +165,10 @@ export default function OfertsScreen({ navigation }) {
 
     return () => {
       mounted = false;
-      try { if (typeof unsubActivos === "function") unsubActivos(); } catch {}
       try { if (typeof unsubEntrantes === "function") unsubEntrantes(); } catch {}
-      try { if (typeof unsubPendientes === "function") unsubPendientes(); } catch {}
-      try { if (typeof unsubConfirmacion === "function") unsubConfirmacion(); } catch {}
       try { if (typeof unsubEnPreparacion === "function") unsubEnPreparacion(); } catch {}
       try { if (typeof unsubEnCamino === "function") unsubEnCamino(); } catch {}
+      try { if (typeof unsubConfirmacion === "function") unsubConfirmacion(); } catch {}
 
       // limpiar ofertas listener/polling si quedaron
       try { if (typeof ofertasUnsubRef.current === "function") ofertasUnsubRef.current(); } catch {}

@@ -7,13 +7,14 @@ import {
   Modal,
   Pressable,
   Image,
-  Alert,
   Platform,
 } from "react-native";
 import { theme } from "../styles/theme";
 import { CAMPOS_FARMACIA, CAMPOS_OFERTA, CAMPOS_PEDIDO, COLECCION_PEDIDO, ESTADOS_PEDIDO } from "../dbConfig";
 import { db } from "../firebase";
 import { doc, updateDoc } from "firebase/firestore";
+import { confirm } from "../utils/ConfirmService"; // <-- IMPORT: ConfirmService (asegurate de la ruta)
+import { useAlert } from "../context/AlertContext";
 
 export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia }) {
   const [modalVisible, setModalVisible] = useState(false);
@@ -23,6 +24,7 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
   const [fechaPedido, setFechaPedido] = useState("Sin fecha");
   const [imagen, setImagen] = useState(null);
   const [procesando, setProcesando] = useState(false);
+  const { showAlert } = useAlert();
 
   // --- Helpers para montos (copiados/adaptados de tu OfertaCard) ---
   const parseMonto = (value) => {
@@ -107,18 +109,86 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
       setEstado(ESTADOS_PEDIDO.EN_PREPARACION);
       setNombreFarmacia(farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "-");
       setMedicamento(oferta?.[CAMPOS_OFERTA.MEDICAMENTO] || "-");
+      const fechaRaw = pedido?.[CAMPOS_PEDIDO.FECHA_ACEPTACION];
+      let fechaTexto = "Sin fecha";
+      if (fechaRaw) {
+        try {
+          if (typeof fechaRaw.toDate === "function") {
+            fechaTexto = fechaRaw.toDate().toLocaleString();
+          } else if (fechaRaw && typeof fechaRaw.seconds === "number") {
+            fechaTexto = new Date(fechaRaw.seconds * 1000).toLocaleString();
+          } else {
+            fechaTexto = String(fechaRaw);
+          }
+        } catch (e) {
+          console.warn("Error convirtiendo fecha:", e);
+          fechaTexto = String(fechaRaw);
+        }
+      }
+      setFechaPedido(fechaTexto || "");
     } else if (estadoRaw === ESTADOS_PEDIDO.EN_CAMINO) {
       setEstado(ESTADOS_PEDIDO.EN_CAMINO);
       setNombreFarmacia(farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "-");
       setMedicamento(oferta?.[CAMPOS_OFERTA.MEDICAMENTO] || "-");
+      const fechaRaw = pedido?.[CAMPOS_PEDIDO.FECHA_EN_CAMINO];
+      let fechaTexto = "Sin fecha";
+      if (fechaRaw) {
+        try {
+          if (typeof fechaRaw.toDate === "function") {
+            fechaTexto = fechaRaw.toDate().toLocaleString();
+          } else if (fechaRaw && typeof fechaRaw.seconds === "number") {
+            fechaTexto = new Date(fechaRaw.seconds * 1000).toLocaleString();
+          } else {
+            fechaTexto = String(fechaRaw);
+          }
+        } catch (e) {
+          console.warn("Error convirtiendo fecha:", e);
+          fechaTexto = String(fechaRaw);
+        }
+      }
+      setFechaPedido(fechaTexto || "");
     } else if (estadoRaw === ESTADOS_PEDIDO.CONFIRMACION) {
       setEstado(ESTADOS_PEDIDO.CONFIRMACION);
       setNombreFarmacia(farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "-");
       setMedicamento(oferta?.[CAMPOS_OFERTA.MEDICAMENTO] || "-");
+      const fechaRaw = pedido?.[CAMPOS_PEDIDO.FECHA_ENTREGADO];
+      let fechaTexto = "Sin fecha";
+      if (fechaRaw) {
+        try {
+          if (typeof fechaRaw.toDate === "function") {
+            fechaTexto = fechaRaw.toDate().toLocaleString();
+          } else if (fechaRaw && typeof fechaRaw.seconds === "number") {
+            fechaTexto = new Date(fechaRaw.seconds * 1000).toLocaleString();
+          } else {
+            fechaTexto = String(fechaRaw);
+          }
+        } catch (e) {
+          console.warn("Error convirtiendo fecha:", e);
+          fechaTexto = String(fechaRaw);
+        }
+      }
+      setFechaPedido(fechaTexto || "");
     } else if (estadoRaw === ESTADOS_PEDIDO.REALIZADO) {
       setEstado(ESTADOS_PEDIDO.REALIZADO);
       setNombreFarmacia(farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "-");
       setMedicamento(oferta?.[CAMPOS_OFERTA.MEDICAMENTO] || "-");
+      const fechaRaw = pedido?.[CAMPOS_PEDIDO.FECHA_ENTREGADO];
+      let fechaTexto = "Sin fecha";
+      if (fechaRaw) {
+        try {
+          if (typeof fechaRaw.toDate === "function") {
+            fechaTexto = fechaRaw.toDate().toLocaleString();
+          } else if (fechaRaw && typeof fechaRaw.seconds === "number") {
+            fechaTexto = new Date(fechaRaw.seconds * 1000).toLocaleString();
+          } else {
+            fechaTexto = String(fechaRaw);
+          }
+        } catch (e) {
+          console.warn("Error convirtiendo fecha:", e);
+          fechaTexto = String(fechaRaw);
+        }
+      }
+      setFechaPedido(fechaTexto || "");
     } else {
       // por defecto lo tratamos como ACTIVO
       setEstado(ESTADOS_PEDIDO.ACTIVO);
@@ -131,16 +201,50 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
     if (procesando) return;
     if (!pedido?.id) return;
 
+    try {
+      // abrimos el confirm modal provisto por ConfirmService
+      // USO: confirm(presetKey, params) -> Promise<boolean>
+      // Ajustá 'confirm_accept_offer' por el preset que prefieras en alertPresets (podes crear uno 'confirmar_entrega').
+      const ok = await confirm("confirm_entrega");
+
+      if (!ok) {
+        // usuario canceló
+        return;
+      }
+
+      setProcesando(true);
+
+      const pedidoRef = doc(db, COLECCION_PEDIDO, pedido.id);
+      // Actualizamos estado y fecha de entrega
+      const fechaAhora = new Date();
+      await updateDoc(pedidoRef, {
+        [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.REALIZADO,
+        [CAMPOS_PEDIDO.FECHA_COMPLETADO]: fechaAhora,
+      });
+      showAlert("pedido_recibido_success", { message: "Pedido finalizado. Ver en el historial." });
+    } catch (error) {
+      console.error("Error confirmando entrega:", error);
+      showAlert("pedido_recibido_error", { message: "Error al confirmar." });
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  // 2. FUNCIÓN PARA CANCELAR EL PEDIDO (CORREGIDA)
+  const cancelarPedido = async () => {
+    if (procesando) return;
+    if (!pedido?.id) return;
+
     const confirmar =
       Platform.OS === "web"
-        ? window.confirm("¿Confirmar recepción del pedido?")
+        ? window.confirm("¿Estás seguro de que querés cancelar este pedido?")
         : await new Promise((resolve) =>
             Alert.alert(
-              "Confirmar entrega",
-              "¿Confirmás que recibiste el pedido?",
+              "Cancelar Pedido",
+              "¿Estás seguro de que querés cancelar este pedido? Esta acción no se puede deshacer.",
               [
-                { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
-                { text: "Confirmar", onPress: () => resolve(true) },
+                { text: "No, mantener", style: "cancel", onPress: () => resolve(false) },
+                { text: "Sí, cancelar", style: "destructive", onPress: () => resolve(true) },
               ],
               { cancelable: true }
             )
@@ -151,16 +255,23 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
     setProcesando(true);
     try {
       const pedidoRef = doc(db, COLECCION_PEDIDO, pedido.id);
+      
+      // Aplicamos TUS REGLAS DE NEGOCIO:
       await updateDoc(pedidoRef, {
-        [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.REALIZADO,
+        [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.RECHAZADO,
+        [CAMPOS_PEDIDO.FECHA_CANCELACION]: new Date(), // <-- Campo requerido
+        [CAMPOS_PEDIDO.CANCELADO_POR]: "cliente", // <-- Campo requerido
       });
+      
+      setEstado(ESTADOS_PEDIDO.RECHAZADO);
+      
+      // (La card desaparecerá sola en OfertsScreen gracias al listener)
 
-      setEstado(ESTADOS_PEDIDO.REALIZADO);
-      if (Platform.OS === "web") window.alert("Entrega confirmada. Gracias.");
-      else Alert.alert("Gracias", "Entrega confirmada.");
     } catch (error) {
-      console.error("Error confirmando entrega:", error);
-      Alert.alert("Error", "No se pudo confirmar la entrega.");
+      // SI SEGUÍS VIENDO EL ALERT DE "ERROR", EL PROBLEMA SON
+      // TUS REGLAS DE SEGURIDAD DE FIRESTORE (PERMISOS)
+      console.error("Error cancelando pedido:", error);
+      Alert.alert("Error", "No se pudo cancelar el pedido. Revisa la consola.");
     } finally {
       setProcesando(false);
     }
@@ -195,6 +306,13 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
   const total = useMemo(() => rows.reduce((acc, r) => acc + (Number(r.montoNum) || 0), 0), [rows]);
 
   const ofertasCount = Array.isArray(ofertas) ? ofertas.length : 0;
+  // 3. DEFINIMOS SI EL BOTÓN DE CANCELAR DEBE MOSTRARSE
+  const puedeCancelar = ![
+    ESTADOS_PEDIDO.EN_CAMINO,
+    ESTADOS_PEDIDO.REALIZADO, // Asumo que REALIZADO es el estado final (tu HU decía "completado")
+    ESTADOS_PEDIDO.CANCELADO, // Si ya está cancelado, no se puede cancelar
+    ESTADOS_PEDIDO.CONFIRMACION // Si está esperando confirmación, ya no se puede cancelar
+  ].includes(estado);
 
   return (
     <View style={styles.card}>
@@ -316,16 +434,67 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
         )}
 
         {estado === ESTADOS_PEDIDO.EN_CAMINO && (
-          <Text style={styles.text}>EN_CAMINO</Text>
+          <>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <Text style={styles.text}>Farmacia: {nombreFarmacia}</Text>
+
+              <View style={styles.totalRow}>
+                <Text style={styles.montoLabel}>Total</Text>
+                <Text style={styles.monto}>{formatCurrency(total)}</Text>
+              </View>
+            </View>
+
+            {/* Lista de medicamentos con precio a la derecha */}
+            <View style={styles.medicamentosContainer}>
+              <Text style={styles.medicamentosTitle}>Medicamentos ofrecidos:</Text>
+
+              {rows.map((r, idx) => (
+                <View key={idx} style={styles.medicamentoRow}>
+                  <Text style={styles.medicamentoName} numberOfLines={1}>
+                    {r.medicamento}
+                  </Text>
+                  <Text style={styles.medicamentoPrecio}>
+                    {formatCurrency(r.montoNum)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <Text style={styles.text}>{fechaPedido}</Text>
+          </>
         )}
 
         {estado === ESTADOS_PEDIDO.CONFIRMACION && (
           <>
             <Text style={styles.text}>La farmacia marcó el pedido como entregado. Por favor confirmá que lo recibiste.</Text>
-            <Text style={styles.text}>Farmacia: {nombreFarmacia}</Text>
-            <Text style={styles.text}>Medicamento: {medicamento}</Text>
-            <Text style={styles.text}> {fechaPedido} </Text>
+            <>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <Text style={styles.text}>Farmacia: {nombreFarmacia}</Text>
 
+              <View style={styles.totalRow}>
+                <Text style={styles.montoLabel}>Total</Text>
+                <Text style={styles.monto}>{formatCurrency(total)}</Text>
+              </View>
+            </View>
+
+            {/* Lista de medicamentos con precio a la derecha */}
+            <View style={styles.medicamentosContainer}>
+              <Text style={styles.medicamentosTitle}>Medicamentos ofrecidos:</Text>
+
+              {rows.map((r, idx) => (
+                <View key={idx} style={styles.medicamentoRow}>
+                  <Text style={styles.medicamentoName} numberOfLines={1}>
+                    {r.medicamento}
+                  </Text>
+                  <Text style={styles.medicamentoPrecio}>
+                    {formatCurrency(r.montoNum)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <Text style={styles.text}>{fechaPedido}</Text>
+          </>
             <TouchableOpacity
               style={[styles.confirmBtn, procesando && { opacity: 0.7 }]}
               onPress={confirmarEntrega}
@@ -345,7 +514,16 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
           </>
         )}
       </View>
-
+      {/* 4. MOSTRAMOS EL BOTÓN DE CANCELAR SI 'puedeCancelar' ES TRUE */}
+      {puedeCancelar && (
+        <TouchableOpacity
+          style={[styles.cancelBtn, procesando && { opacity: 0.7 }]}
+          onPress={cancelarPedido}
+          disabled={procesando}
+        >
+          <Text style={styles.cancelText}>Cancelar Pedido</Text>
+        </TouchableOpacity>
+      )}
       <Modal
         visible={modalVisible}
         transparent={true}
@@ -433,6 +611,21 @@ const styles = StyleSheet.create({
   confirmText: {
     color: "#000000ff",
     fontWeight: "700",
+  },
+  cancelBtn: {
+    marginTop: theme.spacing.sm,
+    backgroundColor: 'transparent',
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.destructive, // Borde rojo
+    alignItems: "center",
+  },
+  cancelText: {
+    color: theme.colors.destructive, // Texto rojo
+    fontWeight: "700",
+    fontSize: 16,
   },
   ofertasNumero: {
     fontWeight: "bold",
