@@ -54,12 +54,30 @@ export default function PedidoDisponibleCard({ pedido, farmacia, tiempoEspera })
   pedido?.resultadosOCR ?? 
   pedido?.textoOCR ??
   [];
+  const capitalizar = (texto) => {
+    const s = (texto ?? "").toString().toLowerCase().trim(); // maneja null/undefined
+    if (!s) return "";
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  };
+
+  const inicializarMedicamento = (m) => {
+    const nombre = [
+      capitalizar(m.nombre_comercial),
+      capitalizar(m.nombre_generico)
+    ]
+      .filter(Boolean)          // saca null/undefined
+      .join(" ")                // une con espacio
+      .trim();
+
+    return { medicamento: nombre, monto: "" };
+  };
 
   const initialItems = Array.isArray(textOCR)
-  ? textOCR.map((m) => ({ medicamento: String(m), monto: "" }))
-  : typeof textOCR === "object" && textOCR !== null
-  ? Object.values(textOCR).map((m) => ({ medicamento: String(m), monto: "" }))
-  : [];
+    ? textOCR.map(inicializarMedicamento)
+    : typeof textOCR === "object" && textOCR !== null
+      ? Object.values(textOCR).map(inicializarMedicamento)
+      : [];
+
 
   const [items, setItems] = useState(initialItems);
 
