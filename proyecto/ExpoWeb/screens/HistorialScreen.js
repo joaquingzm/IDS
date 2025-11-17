@@ -11,93 +11,72 @@ export default function HistorialScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  const currentUser = auth.currentUser;
-  if (!currentUser) {
-    setPedidos([]);
-    setLoading(false);
-    return;
-  }
-
-  const farmaciaId = currentUser.uid;
-
-  let unsubRealizado = null;
-  let unsubRechazado = null;
-
-  const procesarSnapshot = async (pedidosSnapshot, acumuladorPrevio) => {
-    try {
-      const pedidosEnriquecidos = await Promise.all(
-        pedidosSnapshot.map(async (pedido) => {
-          try {
-            const ofertas = await firestoreService.listOfertasForPedido(
-              pedido.id
-            );
-
-            // 🔥 Merge ACEPTADA + RECHAZADA
-            const ofertaGanadora = ofertas.find((of) =>
-              [ESTADOS_OFERTA.ACEPTADA, ESTADOS_OFERTA.RECHAZADA].includes(
-                of[CAMPOS_OFERTA.ESTADO]
-              )
-            );
-
-            return { pedido, oferta: ofertaGanadora };
-          } catch (err) {
-            console.warn("Error enriqueciendo pedido:", pedido.id, err);
-            return { pedido, oferta: null };
-          }
-        })
-      );
-
-      // 🔥 Mezclamos con los que ya había
-      setPedidos((prev) => {
-        const todos = [...(acumuladorPrevio || []), ...pedidosEnriquecidos];
-
-        // evitamos duplicados por ID
-        const unicos = [];
-        const ids = new Set();
-
-        for (let item of todos) {
-          if (!ids.has(item.pedido.id)) {
-            ids.add(item.pedido.id);
-            unicos.push(item);
-          }
-        }
-
-        return unicos;
-      });
-    } catch (error) {
-      console.error("Error procesando pedidos:", error);
-      Alert.alert("Error", "No se pudieron cargar los pedidos.");
-    } finally {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setPedidos([]);
       setLoading(false);
+      return;
     }
-  };
 
-  // -------------------------
-  // 🔥 ESCUCHAR REALIZADOS
-  // -------------------------
-  unsubRealizado = firestoreService.listenPedidosPorEstadoYFarmacia(
-    ESTADOS_PEDIDO.REALIZADO,
-    farmaciaId,
-    (snapRealizados) =>
-      procesarSnapshot(snapRealizados, [])
-  );
+    const farmaciaId = currentUser.uid;
 
-  // -------------------------
-  // 🔥 ESCUCHAR RECHAZADOS
-  // -------------------------
-  unsubRechazado = firestoreService.listenPedidosPorEstadoYFarmacia(
-    ESTADOS_PEDIDO.RECHAZADO,
-    farmaciaId,
-    (snapRechazados) =>
-      procesarSnapshot(snapRechazados, pedidos)
-  );
+    // Estados a escuchar
+    const estadosHistorial = [ESTADOS_PEDIDO.REALIZADO, ESTADOS_PEDIDO.RECHAZADO];
 
-  return () => {
-    unsubRealizado && unsubRealizado();
-    unsubRechazado && unsubRechazado();
-  };
-}, []);
+    const procesarSnapshot = async (pedidosSnapshot) => {
+      try {
+        const pedidosEnriquecidos = await Promise.all(
+          pedidosSnapshot.map(async (pedido) => {
+            try {
+              const ofertas = await firestoreService.listOfertasForPedido(pedido.id);
 
+              // 🔥 Prioridad: ACEPTADA > RECHAZADA
+              const ofertaGanadora =
+                ofertas.find((of) => of[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.ACEPTADA) ||
+                ofertas.find((of) => of[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.RECHAZADA) ||
+                null;
+
+              return { pedido, oferta: ofertaGanadora };
+            } catch (err) {
+              console.warn("Error enriqueciendo pedido:", pedido.id, err);
+              return { pedido, oferta: null };
+            }
+          })
+        );
+
+        // 🔥 Evitar duplicados por ID
+        setPedidos((prev) => {
+          const combined = [...prev, ...pedidosEnriquecidos];
+          const uniqueIds = new Set();
+          const unicos = [];
+          for (const item of combined) {
+            if (!uniqueIds.has(item.pedido.id)) {
+              uniqueIds.add(item.pedido.id);
+              unicos.push(item);
+            }
+          }
+          // Ordenar por fecha de pedido descendente
+          return unicos.sort((a, b) => {
+            const fechaA = a.pedido.fechaPedido?.toDate?.() || new Date(a.pedido.fechaPedido) || new Date(0);
+            const fechaB = b.pedido.fechaPedido?.toDate?.() || new Date(b.pedido.fechaPedido) || new Date(0);
+            return fechaB - fechaA;
+          });
+        });
+      } catch (error) {
+        console.error("Error procesando pedidos:", error);
+        Alert.alert("Error", "No se pudieron cargar los pedidos.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Listener único para todos los estados históricos
+    const unsubscribe = estadosHistorial.map((estado) =>
+      firestoreService.listenPedidosPorEstadoYFarmacia(estado, farmaciaId, procesarSnapshot)
+    );
+
+    return () => unsubscribe.forEach((unsub) => unsub && unsub());
+  }, []);
 
   if (loading) {
     return (
@@ -118,11 +97,7 @@ export default function HistorialScreen() {
       >
         {pedidos.length > 0 ? (
           pedidos.map(({ pedido, oferta }) => (
-            <HistorialCard
-              key={pedido.id}
-              pedido={pedido}
-              oferta={oferta}
-            />
+            <HistorialCard key={pedido.id} pedido={pedido} oferta={oferta} />
           ))
         ) : (
           <View style={styles.emptyContainer}>
