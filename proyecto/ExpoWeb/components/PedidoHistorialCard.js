@@ -104,7 +104,7 @@ export default function HistorialCard({ pedido, oferta }) {
 
       {/* --- BLOQUE DE MEDICAMENTOS (copiado igual al de CardPedidoPendiente) --- */}
       <View style={{ marginTop: 10, marginBottom: 10 }}>
-        <Text style={styles.medicamentosTitle}>Medicamentos vendidos:</Text>
+        <Text style={styles.medicamentosTitle}>Medicamentos ofrecidos:</Text>
 
         {rows.map((r, idx) => (
           <View key={idx} style={styles.medicamentoRow}>
