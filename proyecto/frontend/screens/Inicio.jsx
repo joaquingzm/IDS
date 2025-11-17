@@ -10,10 +10,10 @@ export default function HomeScreen() {
   const [photoUri, setPhotoUri] = useState(null);
 
   const coupons = [
-    { id: "1", title: "15% OFF", desc: "Medicamentos con receta", exp: "19/10/2025" },
-    { id: "2", title: "20% OFF", desc: "Cuidado personal", exp: "24/10/2025" },
-    { id: "3", title: "10% OFF", desc: "Vitaminas y suplementos", exp: "17/10/2025" },
-    { id: "4", title: "25% OFF", desc: "Todos los productos", exp: "14/10/2025" },
+    { id: "1", title: "15% OFF", desc: "Medicamentos con receta", exp: "19/12/2025" },
+    { id: "2", title: "20% OFF", desc: "Cuidado personal", exp: "24/12/2025" },
+    { id: "3", title: "10% OFF", desc: "Vitaminas y suplementos", exp: "17/12/2025" },
+    { id: "4", title: "25% OFF", desc: "Todos los productos", exp: "14/12/2025" },
   ];
 
   const farmacias = [
