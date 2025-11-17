@@ -17,6 +17,8 @@ export default function HistorialCard({ pedido, oferta }) {
   const direccion = pedido?.[CAMPOS_PEDIDO.DIRECCION] ?? "No disponible";
   const obraSocial = pedido?.[CAMPOS_PEDIDO.OBRASOCIAL] ?? "No informado";
   const NumAfiliado = pedido?.[CAMPOS_PEDIDO.OBRASOCIAL_NUM] ?? "No informado";
+  const Estado = pedido?.[CAMPOS_PEDIDO.ESTADO] ?? "No informado";
+  const Cancelado = pedido?.[CAMPOS_PEDIDO.CANCELADO_POR] ?? "No informado";
 
   // Fecha segura
   const fechaRaw = oferta?.[CAMPOS_OFERTA.FECHA_OFERTA];
@@ -94,6 +96,11 @@ export default function HistorialCard({ pedido, oferta }) {
       <Text style={styles.text}>Dirección: {direccion}</Text>
       <Text style={styles.text}>Obra social: {obraSocial}</Text>
       <Text style={styles.text}>Número de afiliado: {NumAfiliado}</Text>
+      <Text style={styles.text}>Estado: {Estado}</Text>
+      {Estado === "rechazado" && (
+        <Text style={styles.text}>Cancelado por: {Cancelado}</Text>
+      )}
+      
 
       {/* --- BLOQUE DE MEDICAMENTOS (copiado igual al de CardPedidoPendiente) --- */}
       <View style={{ marginTop: 10, marginBottom: 10 }}>

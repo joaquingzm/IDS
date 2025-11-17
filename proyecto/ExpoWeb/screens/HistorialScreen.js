@@ -9,55 +9,95 @@ import * as firestoreService from "../utils/firestoreService";
 export default function HistorialScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [farmacia, setFarmacia] = useState(null);
 
   useEffect(() => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      setPedidos([]);
-      setLoading(false);
-      return;
-    }
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    setPedidos([]);
+    setLoading(false);
+    return;
+  }
 
-    const currentUserId = currentUser.uid;
+  const farmaciaId = currentUser.uid;
 
-    // 🔥 Nos suscribimos a los pedidos "realizados" de la farmacia actual
-    const unsubscribe = firestoreService.listenPedidosPorEstadoYFarmacia(
-      ESTADOS_PEDIDO.REALIZADO,
-      currentUserId,
-      async (pedidosSnapshot) => {
-        try {
-          // Enriquecer cada pedido con su oferta aceptada y datos de usuario
-          const pedidosEnriquecidos = await Promise.all(
-            pedidosSnapshot.map(async (pedido) => {
-              try {
-                const ofertas = await firestoreService.listOfertasForPedido(pedido.id);
-                const ofertaGanadora = ofertas.find(
-                  (of) =>
-                     of[CAMPOS_OFERTA.ESTADO] === ESTADOS_OFERTA.ACEPTADA 
-                );
+  let unsubRealizado = null;
+  let unsubRechazado = null;
 
-                return { pedido, oferta: ofertaGanadora };
-              } catch (err) {
-                console.warn("Error enriqueciendo pedido:", pedido.id, err);
-                return { pedido, oferta: null, usuario: null };
-              }
-            })
-          );
+  const procesarSnapshot = async (pedidosSnapshot, acumuladorPrevio) => {
+    try {
+      const pedidosEnriquecidos = await Promise.all(
+        pedidosSnapshot.map(async (pedido) => {
+          try {
+            const ofertas = await firestoreService.listOfertasForPedido(
+              pedido.id
+            );
 
-          setPedidos(pedidosEnriquecidos);
-        } catch (error) {
-          console.error("Error procesando pedidos:", error);
-          Alert.alert("Error", "No se pudieron cargar los pedidos.");
-        } finally {
-          setLoading(false);
+            // 🔥 Merge ACEPTADA + RECHAZADA
+            const ofertaGanadora = ofertas.find((of) =>
+              [ESTADOS_OFERTA.ACEPTADA, ESTADOS_OFERTA.RECHAZADA].includes(
+                of[CAMPOS_OFERTA.ESTADO]
+              )
+            );
+
+            return { pedido, oferta: ofertaGanadora };
+          } catch (err) {
+            console.warn("Error enriqueciendo pedido:", pedido.id, err);
+            return { pedido, oferta: null };
+          }
+        })
+      );
+
+      // 🔥 Mezclamos con los que ya había
+      setPedidos((prev) => {
+        const todos = [...(acumuladorPrevio || []), ...pedidosEnriquecidos];
+
+        // evitamos duplicados por ID
+        const unicos = [];
+        const ids = new Set();
+
+        for (let item of todos) {
+          if (!ids.has(item.pedido.id)) {
+            ids.add(item.pedido.id);
+            unicos.push(item);
+          }
         }
-      }
-    );
 
+        return unicos;
+      });
+    } catch (error) {
+      console.error("Error procesando pedidos:", error);
+      Alert.alert("Error", "No se pudieron cargar los pedidos.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return () => unsubscribe && unsubscribe();
-  }, []);
+  // -------------------------
+  // 🔥 ESCUCHAR REALIZADOS
+  // -------------------------
+  unsubRealizado = firestoreService.listenPedidosPorEstadoYFarmacia(
+    ESTADOS_PEDIDO.REALIZADO,
+    farmaciaId,
+    (snapRealizados) =>
+      procesarSnapshot(snapRealizados, [])
+  );
+
+  // -------------------------
+  // 🔥 ESCUCHAR RECHAZADOS
+  // -------------------------
+  unsubRechazado = firestoreService.listenPedidosPorEstadoYFarmacia(
+    ESTADOS_PEDIDO.RECHAZADO,
+    farmaciaId,
+    (snapRechazados) =>
+      procesarSnapshot(snapRechazados, pedidos)
+  );
+
+  return () => {
+    unsubRealizado && unsubRealizado();
+    unsubRechazado && unsubRechazado();
+  };
+}, []);
+
 
   if (loading) {
     return (
@@ -116,7 +156,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: theme.spacing.xl,
-    flexGrow: 1,   
+    flexGrow: 1,
   },
   loaderContainer: {
     flex: 1,

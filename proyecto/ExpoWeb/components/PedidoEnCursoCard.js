@@ -5,8 +5,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
-  Platform,
 } from "react-native";
 import { theme } from "../styles/theme";
 import { db } from "../firebase";
@@ -18,6 +16,7 @@ import {
   CAMPOS_OFERTA,
 } from "../dbConfig";
 import { useAlert } from "../context/AlertContext";
+
 export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminado }) {
   const { showAlert } = useAlert();
   const initialEstado =
@@ -51,7 +50,6 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
   };
 
   const avanzarEstado = async () => {
-
     if (procesando) return;
 
     const estadoActual = pedido?.estado ?? ESTADOS_PEDIDO.PENDIENTE;
@@ -80,9 +78,9 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
     };
     const nextLabel = labelMap[siguienteEstado] ?? String(siguienteEstado);
 
-  const confirmar = await confirm("confirm_change_state", {
-  message: `Se cambiará el estado a "${nextLabel}".`,
-});
+    const confirmar = await confirm("confirm_change_state", {
+      message: `Se cambiará el estado a "${nextLabel}".`,
+    });
 
     if (!confirmar) return;
 
@@ -114,7 +112,6 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
       };
 
       setPedido(newLocal);
-      
 
       showAlert("cambio_success", { message: `Pedido marcado como "${nextLabel}".` });
     } catch (error) {
@@ -128,7 +125,7 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
     if (procesando) return;
 
     const confirmar = await confirm("rechazar_pedido", {
-  message: "¿Estás seguro de rechazar este pedido?",
+      message: "¿Estás seguro de rechazar este pedido?",
     });
     if (!confirmar) return;
 
@@ -156,16 +153,16 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
       if (typeof onPedidoEliminado === "function") {
         onPedidoEliminado(newPedido.id);
       }
-      
+
       showAlert("pedido_rechazado_success");
     } catch (error) {
       showAlert("error", { message: "No se pudo rechazar el pedido." });
-      } finally {
+    } finally {
       setProcesando(false);
     }
   };
 
-  // --- FORMATEADORES Y LISTAS (AGREGADOS) ---
+  // --- FORMATEADORES Y LISTAS ---
   const parseMonto = (value) => {
     if (value == null || value === "") return 0;
     if (typeof value === "number") return value;
@@ -226,7 +223,7 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
     pedido?.[CAMPOS_PEDIDO.DIRECCION] || "Dirección no especificada";
   const obraSocial =
     pedido?.[CAMPOS_PEDIDO.OBRASOCIAL] || "Obra social no especificada";
-     const NumAfiliado =
+  const NumAfiliado =
     pedido?.[CAMPOS_PEDIDO.OBRASOCIAL_NUM] || "Numero de afiliado no especificado";
 
   function formatFecha(f) {
@@ -259,11 +256,14 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
       ? "En camino"
       : "Pendiente";
 
+  // --- LÓGICA DE BOTONES ---
   const botonesVisibles =
     expandido &&
     estadoReal !== ESTADOS_PEDIDO.CONFIRMACION &&
     estadoReal !== ESTADOS_PEDIDO.REALIZADO &&
     estadoReal !== ESTADOS_PEDIDO.RECHAZADO;
+
+  const rechazarVisible = estadoReal === ESTADOS_PEDIDO.EN_PREPARACION;
 
   return (
     <TouchableOpacity
@@ -320,8 +320,6 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
             </View>
           </View>
 
-          {/* -------------------------------------------------------- */}
-
           {pedido?.fechaPedido && (
             <Text style={styles.text}>
               <Text style={styles.label}>Fecha: </Text>
@@ -334,12 +332,8 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
           style={[
             styles.estado,
             estadoReal === ESTADOS_PEDIDO.PENDIENTE && { color: theme.colors.primary },
-            estadoReal === ESTADOS_PEDIDO.EN_CAMINO && {
-              color: theme.colors.secondaryForeground,
-            },
-            estadoReal === ESTADOS_PEDIDO.CONFIRMACION && {
-              color: theme.colors.secondaryForeground,
-            },
+            estadoReal === ESTADOS_PEDIDO.EN_CAMINO && { color: theme.colors.secondaryForeground },
+            estadoReal === ESTADOS_PEDIDO.CONFIRMACION && { color: theme.colors.secondaryForeground },
             estadoReal === ESTADOS_PEDIDO.REALIZADO && { color: theme.colors.success },
             estadoReal === ESTADOS_PEDIDO.RECHAZADO && { color: theme.colors.destructive },
           ]}
@@ -365,20 +359,21 @@ export default function PedidoEnCursoCard({ pedidoData, oferta, onPedidoEliminad
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.boton,
-                styles.botonSecundario,
-                procesando && { opacity: 0.7 },
-              ]}
-              onPress={cancelarPedido}
-              disabled={procesando}
-            >
-              <Text style={styles.botonTexto}>Rechazar</Text>
-            </TouchableOpacity>
+            {rechazarVisible && (
+              <TouchableOpacity
+                style={[
+                  styles.boton,
+                  styles.botonSecundario,
+                  (procesando || !rechazarVisible) && { opacity: 0.5 },
+                ]}
+                onPress={cancelarPedido}
+                disabled={procesando || !rechazarVisible}
+              >
+                <Text style={styles.botonTexto}>Rechazar</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
-
       </View>
     </TouchableOpacity>
   );
