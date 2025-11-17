@@ -1,4 +1,4 @@
-// OfertaCard.js (actualizada: setea FECHA_ACEPTACION y ESTADO = EN_PREPARACION)
+// OfertaCard.js
 import React, { useState } from "react";
 import {
   View,
@@ -21,6 +21,14 @@ import { aceptarOfertaBatch, updatePedido } from "../utils/firestoreService";
 import { confirm } from "../utils/ConfirmService";
 import { serverTimestamp } from "firebase/firestore";
 
+/**
+ * OfertaCard
+ * Props:
+ * - oferta: object (oferta)
+ * - pedidoId: string
+ * - pedidoData: object (pedido completo)
+ * - onAccepted: function(pedidoId, ofertaId) -> callback para que el padre actualice UI
+ */
 export default function OfertaCard({ oferta = {}, pedidoId, pedidoData, onAccepted }) {
   const [procesando, setProcesando] = useState(false);
 
@@ -101,7 +109,7 @@ export default function OfertaCard({ oferta = {}, pedidoId, pedidoData, onAccept
     try {
       const totalFormatted = formatCurrency(total);
 
-      // pedir confirmación usando ConfirmProvider
+      // Confirmación con ConfirmService (preset 'confirm_accept_offer' debe existir en alertPresets)
       const confirmed = await confirm("confirm_accept_offer", {
         id: pedidoId,
         farmaciaNombre,
@@ -114,19 +122,24 @@ export default function OfertaCard({ oferta = {}, pedidoId, pedidoData, onAccept
         return;
       }
 
-      // 1) Ejecutar aceptación en Firestore (batch que acepta y rechaza otras ofertas)
+      // 1) Ejecutar aceptación en Firestore (batch que marca la oferta aceptada y rechaza las demás)
       await aceptarOfertaBatch(pedidoId, oferta.id, oferta.farmaciaId, { rejectOthers: true });
 
-      // 2) SETEAR la fecha de aceptación en el pedido y pasar a EN_PREPARACION
+      // 2) SETEAR la fecha de aceptación en el pedido y cambiar estado a EN_PREPARACION
+      // Nota: aceptarOfertaBatch ya actualiza pedido (según tu implementación) pero dejamos esta actualización
+      // adicional para forzar FECHA_ACEPTACION con serverTimestamp y estado consistente (EN_PREPARACION).
       try {
         await updatePedido(pedidoId, {
           [CAMPOS_PEDIDO.FECHA_ACEPTACION]: serverTimestamp(),
           [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.EN_PREPARACION,
+          [CAMPOS_PEDIDO.OFERTA_ACEPTADA_ID]: oferta.id,
+          [CAMPOS_PEDIDO.FARMACIA_ASIGANADA_ID]: oferta.farmaciaId ?? null,
         });
       } catch (errUpdate) {
         console.error("Error seteando FECHA_ACEPTACION / ESTADO en el pedido:", errUpdate);
         // Informar al usuario (no bloquea la UX)
-        Alert.alert("Aviso", "Oferta aceptada pero no se pudo actualizar completamente el pedido.");
+        if (Platform.OS === "web") window.alert("Oferta aceptada pero no se pudo actualizar completamente el pedido.");
+        else Alert.alert("Aviso", "Oferta aceptada pero no se pudo actualizar completamente el pedido.");
       }
 
       // 3) Notificar al padre para que actualice UI inmediatamente (optimistic)
@@ -139,7 +152,8 @@ export default function OfertaCard({ oferta = {}, pedidoId, pedidoData, onAccept
       }
     } catch (error) {
       console.error("Error en handleAceptar:", error);
-      Alert.alert("Error", "Ocurrió un error al aceptar la oferta. Intenta nuevamente.");
+      if (Platform.OS === "web") window.alert("Ocurrió un error al aceptar la oferta. Intenta nuevamente.");
+      else Alert.alert("Error", "Ocurrió un error al aceptar la oferta. Intenta nuevamente.");
     } finally {
       setProcesando(false);
     }

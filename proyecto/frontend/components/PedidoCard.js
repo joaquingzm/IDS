@@ -8,12 +8,13 @@ import {
   Pressable,
   Image,
   Platform,
+  Alert,
 } from "react-native";
 import { theme } from "../styles/theme";
 import { CAMPOS_FARMACIA, CAMPOS_OFERTA, CAMPOS_PEDIDO, COLECCION_PEDIDO, ESTADOS_PEDIDO } from "../dbConfig";
 import { db } from "../firebase";
 import { doc, updateDoc } from "firebase/firestore";
-import { confirm } from "../utils/ConfirmService"; // <-- IMPORT: ConfirmService (asegurate de la ruta)
+import { confirm } from "../utils/ConfirmService"; // <-- ConfirmService
 import { useAlert } from "../context/AlertContext";
 
 export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia }) {
@@ -26,7 +27,7 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
   const [procesando, setProcesando] = useState(false);
   const { showAlert } = useAlert();
 
-  // --- Helpers para montos (copiados/adaptados de tu OfertaCard) ---
+  // --- Helpers para montos ---
   const parseMonto = (value) => {
     if (value == null || value === "") return 0;
     if (typeof value === "number") return value;
@@ -58,7 +59,6 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
   };
   // ---------------------------------------------------------------
 
-  // ---- IMPORTANT: ahora dependemos también de "ofertas" para que actualice en vivo ----
   useEffect(() => {
     if (!pedido) {
       setEstado("");
@@ -93,191 +93,143 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
     setImagen(img);
 
     const estadoRaw = pedido?.[CAMPOS_PEDIDO.ESTADO];
-    // NUEVA LÓGICA: si está ENTRANTE evaluamos la cantidad de ofertas actuales
     if (estadoRaw === ESTADOS_PEDIDO.ENTRANTE) {
       const cantOfertas = Array.isArray(ofertas) ? ofertas.length : 0;
-
-      if (cantOfertas === 0) {
-        setEstado("ENTRANTE_SIN_OFERTAS"); // pseudo-estado interno
-      } else {
-        setEstado("ENTRANTE_CON_OFERTAS"); // pseudo-estado interno
-      }
-
+      setEstado(cantOfertas === 0 ? "ENTRANTE_SIN_OFERTAS" : "ENTRANTE_CON_OFERTAS");
       setNombreFarmacia("-");
       setMedicamento("-");
     } else if (estadoRaw === ESTADOS_PEDIDO.EN_PREPARACION) {
       setEstado(ESTADOS_PEDIDO.EN_PREPARACION);
       setNombreFarmacia(farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "-");
       setMedicamento(oferta?.[CAMPOS_OFERTA.MEDICAMENTO] || "-");
-      const fechaRaw = pedido?.[CAMPOS_PEDIDO.FECHA_ACEPTACION];
-      let fechaTexto = "Sin fecha";
-      if (fechaRaw) {
-        try {
-          if (typeof fechaRaw.toDate === "function") {
-            fechaTexto = fechaRaw.toDate().toLocaleString();
-          } else if (fechaRaw && typeof fechaRaw.seconds === "number") {
-            fechaTexto = new Date(fechaRaw.seconds * 1000).toLocaleString();
-          } else {
-            fechaTexto = String(fechaRaw);
-          }
-        } catch (e) {
-          console.warn("Error convirtiendo fecha:", e);
-          fechaTexto = String(fechaRaw);
-        }
-      }
-      setFechaPedido(fechaTexto || "");
+      const f = pedido?.[CAMPOS_PEDIDO.FECHA_ACEPTACION];
+      setFechaPedido(convertFechaToString(f));
     } else if (estadoRaw === ESTADOS_PEDIDO.EN_CAMINO) {
       setEstado(ESTADOS_PEDIDO.EN_CAMINO);
       setNombreFarmacia(farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "-");
       setMedicamento(oferta?.[CAMPOS_OFERTA.MEDICAMENTO] || "-");
-      const fechaRaw = pedido?.[CAMPOS_PEDIDO.FECHA_EN_CAMINO];
-      let fechaTexto = "Sin fecha";
-      if (fechaRaw) {
-        try {
-          if (typeof fechaRaw.toDate === "function") {
-            fechaTexto = fechaRaw.toDate().toLocaleString();
-          } else if (fechaRaw && typeof fechaRaw.seconds === "number") {
-            fechaTexto = new Date(fechaRaw.seconds * 1000).toLocaleString();
-          } else {
-            fechaTexto = String(fechaRaw);
-          }
-        } catch (e) {
-          console.warn("Error convirtiendo fecha:", e);
-          fechaTexto = String(fechaRaw);
-        }
-      }
-      setFechaPedido(fechaTexto || "");
+      const f = pedido?.[CAMPOS_PEDIDO.FECHA_EN_CAMINO];
+      setFechaPedido(convertFechaToString(f));
     } else if (estadoRaw === ESTADOS_PEDIDO.CONFIRMACION) {
       setEstado(ESTADOS_PEDIDO.CONFIRMACION);
       setNombreFarmacia(farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "-");
       setMedicamento(oferta?.[CAMPOS_OFERTA.MEDICAMENTO] || "-");
-      const fechaRaw = pedido?.[CAMPOS_PEDIDO.FECHA_ENTREGADO];
-      let fechaTexto = "Sin fecha";
-      if (fechaRaw) {
-        try {
-          if (typeof fechaRaw.toDate === "function") {
-            fechaTexto = fechaRaw.toDate().toLocaleString();
-          } else if (fechaRaw && typeof fechaRaw.seconds === "number") {
-            fechaTexto = new Date(fechaRaw.seconds * 1000).toLocaleString();
-          } else {
-            fechaTexto = String(fechaRaw);
-          }
-        } catch (e) {
-          console.warn("Error convirtiendo fecha:", e);
-          fechaTexto = String(fechaRaw);
-        }
-      }
-      setFechaPedido(fechaTexto || "");
+      const f = pedido?.[CAMPOS_PEDIDO.FECHA_ENTREGADO];
+      setFechaPedido(convertFechaToString(f));
     } else if (estadoRaw === ESTADOS_PEDIDO.REALIZADO) {
       setEstado(ESTADOS_PEDIDO.REALIZADO);
       setNombreFarmacia(farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "-");
       setMedicamento(oferta?.[CAMPOS_OFERTA.MEDICAMENTO] || "-");
-      const fechaRaw = pedido?.[CAMPOS_PEDIDO.FECHA_ENTREGADO];
-      let fechaTexto = "Sin fecha";
-      if (fechaRaw) {
-        try {
-          if (typeof fechaRaw.toDate === "function") {
-            fechaTexto = fechaRaw.toDate().toLocaleString();
-          } else if (fechaRaw && typeof fechaRaw.seconds === "number") {
-            fechaTexto = new Date(fechaRaw.seconds * 1000).toLocaleString();
-          } else {
-            fechaTexto = String(fechaRaw);
-          }
-        } catch (e) {
-          console.warn("Error convirtiendo fecha:", e);
-          fechaTexto = String(fechaRaw);
-        }
-      }
-      setFechaPedido(fechaTexto || "");
+      const f = pedido?.[CAMPOS_PEDIDO.FECHA_ENTREGADO];
+      setFechaPedido(convertFechaToString(f));
+    } else if (estadoRaw === ESTADOS_PEDIDO.RECHAZADO) {
+      setEstado(ESTADOS_PEDIDO.RECHAZADO);
+      setNombreFarmacia(farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "-");
+      setMedicamento(oferta?.[CAMPOS_OFERTA.MEDICAMENTO] || "-");
+      const f = pedido?.[CAMPOS_PEDIDO.FECHA_CANCELACION] || pedido?.[CAMPOS_PEDIDO.FECHA_ENTREGADO];
+      setFechaPedido(convertFechaToString(f));
     } else {
-      // por defecto lo tratamos como ACTIVO
       setEstado(ESTADOS_PEDIDO.ACTIVO);
       setNombreFarmacia(farmacia?.[CAMPOS_FARMACIA.NOMBRE] || "-");
       setMedicamento(oferta?.[CAMPOS_OFERTA.MEDICAMENTO] || "-");
     }
-  }, [pedido, oferta, farmacia, ofertas]); // <-- aquí incluimos "ofertas"
+  }, [pedido, oferta, farmacia, ofertas]);
+
+  const convertFechaToString = (fechaRaw) => {
+    try {
+      if (!fechaRaw) return "Sin fecha";
+      if (typeof fechaRaw?.toDate === "function") return fechaRaw.toDate().toLocaleString();
+      if (fechaRaw && typeof fechaRaw.seconds === "number") return new Date(fechaRaw.seconds * 1000).toLocaleString();
+      const d = new Date(fechaRaw);
+      if (!isNaN(d.getTime())) return d.toLocaleString();
+      return String(fechaRaw);
+    } catch {
+      return "Sin fecha";
+    }
+  };
 
   const confirmarEntrega = async () => {
     if (procesando) return;
     if (!pedido?.id) return;
 
     try {
-      // abrimos el confirm modal provisto por ConfirmService
-      // USO: confirm(presetKey, params) -> Promise<boolean>
-      // Ajustá 'confirm_accept_offer' por el preset que prefieras en alertPresets (podes crear uno 'confirmar_entrega').
-      const ok = await confirm("confirm_entrega");
-
-      if (!ok) {
-        // usuario canceló
-        return;
-      }
+      const ok = await confirm("confirm_entrega", { id: pedido.id, image: imagen });
+      if (!ok) return;
 
       setProcesando(true);
 
       const pedidoRef = doc(db, COLECCION_PEDIDO, pedido.id);
-      // Actualizamos estado y fecha de entrega
       const fechaAhora = new Date();
       await updateDoc(pedidoRef, {
         [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.REALIZADO,
         [CAMPOS_PEDIDO.FECHA_COMPLETADO]: fechaAhora,
       });
-      showAlert("pedido_recibido_success", { message: "Pedido finalizado. Ver en el historial." });
+
+      setEstado(ESTADOS_PEDIDO.REALIZADO);
+      setFechaPedido(fechaAhora.toLocaleString());
+
+      try {
+        showAlert && showAlert("pedido_success", { message: "Entrega confirmada. Gracias." });
+      } catch (e) {
+        if (Platform.OS === "web") window.alert("Entrega confirmada. Gracias.");
+        else Alert.alert("Entrega confirmada", "Gracias.");
+      }
     } catch (error) {
       console.error("Error confirmando entrega:", error);
-      showAlert("pedido_recibido_error", { message: "Error al confirmar." });
+      try {
+        showAlert && showAlert("pedido_error", { message: "Error al confirmar entrega." });
+      } catch (e) {
+        if (Platform.OS === "web") window.alert("Error al confirmar entrega.");
+        else Alert.alert("Error", "No se pudo confirmar la entrega.");
+      }
     } finally {
       setProcesando(false);
     }
   };
 
-  // 2. FUNCIÓN PARA CANCELAR EL PEDIDO (CORREGIDA)
+  // ------------------- Nuevo: cancelar con ConfirmService -------------------
   const cancelarPedido = async () => {
     if (procesando) return;
     if (!pedido?.id) return;
 
-    const confirmar =
-      Platform.OS === "web"
-        ? window.confirm("¿Estás seguro de que querés cancelar este pedido?")
-        : await new Promise((resolve) =>
-            Alert.alert(
-              "Cancelar Pedido",
-              "¿Estás seguro de que querés cancelar este pedido? Esta acción no se puede deshacer.",
-              [
-                { text: "No, mantener", style: "cancel", onPress: () => resolve(false) },
-                { text: "Sí, cancelar", style: "destructive", onPress: () => resolve(true) },
-              ],
-              { cancelable: true }
-            )
-          );
-
-    if (!confirmar) return;
-
-    setProcesando(true);
     try {
+      // Usamos ConfirmService para preguntar al usuario (preset: 'confirmar_eliminar_pedido')
+      const ok = await confirm("cancelar_pedido");
+      if (!ok) return;
+
+      setProcesando(true);
+
       const pedidoRef = doc(db, COLECCION_PEDIDO, pedido.id);
-      
-      // Aplicamos TUS REGLAS DE NEGOCIO:
       await updateDoc(pedidoRef, {
         [CAMPOS_PEDIDO.ESTADO]: ESTADOS_PEDIDO.RECHAZADO,
-        [CAMPOS_PEDIDO.FECHA_CANCELACION]: new Date(), // <-- Campo requerido
-        [CAMPOS_PEDIDO.CANCELADO_POR]: "cliente", // <-- Campo requerido
+        [CAMPOS_PEDIDO.FECHA_CANCELACION]: new Date(),
+        [CAMPOS_PEDIDO.CANCELADO_POR]: "cliente",
       });
-      
-      setEstado(ESTADOS_PEDIDO.RECHAZADO);
-      
-      // (La card desaparecerá sola en OfertsScreen gracias al listener)
 
+      setEstado(ESTADOS_PEDIDO.RECHAZADO);
+      setFechaPedido(new Date().toLocaleString());
+
+      try {
+        showAlert && showAlert("pedido_success", { title:"Pedido cancelado.",message: "Pedido cancelado correctamente." });
+      } catch (e) {
+        if (Platform.OS === "web") window.alert("Pedido cancelado correctamente.");
+        else Alert.alert("Pedido cancelado", "Se canceló el pedido correctamente.");
+      }
     } catch (error) {
-      // SI SEGUÍS VIENDO EL ALERT DE "ERROR", EL PROBLEMA SON
-      // TUS REGLAS DE SEGURIDAD DE FIRESTORE (PERMISOS)
       console.error("Error cancelando pedido:", error);
-      Alert.alert("Error", "No se pudo cancelar el pedido. Revisa la consola.");
+      try {
+        showAlert && showAlert("pedido_error", { message: "No se pudo cancelar el pedido." });
+      } catch (e) {
+        if (Platform.OS === "web") window.alert("No se pudo cancelar el pedido.");
+        else Alert.alert("Error", "No se pudo cancelar el pedido.");
+      }
     } finally {
       setProcesando(false);
     }
   };
+  // ------------------------------------------------------------------------
 
-  // --- Preparación de filas de medicamentos para mostrar en ACTIVO ---
+  // --- Preparación de filas de medicamentos ---
   const medicamentosList = Array.isArray(oferta?.[CAMPOS_OFERTA.MEDICAMENTO])
     ? oferta[CAMPOS_OFERTA.MEDICAMENTO]
     : oferta?.[CAMPOS_OFERTA.MEDICAMENTO]
@@ -306,12 +258,12 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
   const total = useMemo(() => rows.reduce((acc, r) => acc + (Number(r.montoNum) || 0), 0), [rows]);
 
   const ofertasCount = Array.isArray(ofertas) ? ofertas.length : 0;
-  // 3. DEFINIMOS SI EL BOTÓN DE CANCELAR DEBE MOSTRARSE
+
+  // Mostrar botón cancelar sólo si se puede
   const puedeCancelar = ![
     ESTADOS_PEDIDO.EN_CAMINO,
-    ESTADOS_PEDIDO.REALIZADO, // Asumo que REALIZADO es el estado final (tu HU decía "completado")
-    ESTADOS_PEDIDO.CANCELADO, // Si ya está cancelado, no se puede cancelar
-    ESTADOS_PEDIDO.CONFIRMACION // Si está esperando confirmación, ya no se puede cancelar
+    ESTADOS_PEDIDO.REALIZADO,
+    ESTADOS_PEDIDO.CONFIRMACION,
   ].includes(estado);
 
   return (
@@ -321,11 +273,10 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
         {estado === "ENTRANTE_SIN_OFERTAS" && (
           <Text style={styles.title}>Esperando ofertas.</Text>
         )}
-        {/* ENTRENTE CON OFERTAS (antes PENDIENTE) */}
+        {/* ENTRENTE CON OFERTAS */}
         {estado === "ENTRANTE_CON_OFERTAS" && (
           <Text style={styles.title}>Hay ofertas disponibles.</Text>
         )}
-        {/* YA NO EXISTE PENDIENTE */}
         {estado === ESTADOS_PEDIDO.ACTIVO && <Text style={styles.title}>Activo.</Text>}
         {estado === ESTADOS_PEDIDO.EN_PREPARACION && <Text style={styles.title}>En preparación.</Text>}
         {estado === ESTADOS_PEDIDO.EN_CAMINO && <Text style={styles.title}>En camino.</Text>}
@@ -348,7 +299,7 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
           </TouchableOpacity>
         </View>
 
-        {/* SIN OFERTAS */}
+        {/* Contenido según estado (omitido para brevedad — lo mantenés igual que antes) */}
         {estado === "ENTRANTE_SIN_OFERTAS" && (
           <>
             <Text style={styles.text}>Tu pedido aún no recibió ofertas.</Text>
@@ -356,7 +307,6 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
           </>
         )}
 
-        {/* CON OFERTAS */}
         {estado === "ENTRANTE_CON_OFERTAS" && (
           <>
             <Text style={styles.text}>
@@ -382,7 +332,6 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
               </View>
             </View>
 
-            {/* Lista de medicamentos con precio a la derecha */}
             <View style={styles.medicamentosContainer}>
               <Text style={styles.medicamentosTitle}>Medicamentos ofrecidos:</Text>
 
@@ -413,7 +362,6 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
               </View>
             </View>
 
-            {/* Lista de medicamentos con precio a la derecha */}
             <View style={styles.medicamentosContainer}>
               <Text style={styles.medicamentosTitle}>Medicamentos ofrecidos:</Text>
 
@@ -444,7 +392,6 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
               </View>
             </View>
 
-            {/* Lista de medicamentos con precio a la derecha */}
             <View style={styles.medicamentosContainer}>
               <Text style={styles.medicamentosTitle}>Medicamentos ofrecidos:</Text>
 
@@ -468,33 +415,32 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
           <>
             <Text style={styles.text}>La farmacia marcó el pedido como entregado. Por favor confirmá que lo recibiste.</Text>
             <>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <Text style={styles.text}>Farmacia: {nombreFarmacia}</Text>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <Text style={styles.text}>Farmacia: {nombreFarmacia}</Text>
 
-              <View style={styles.totalRow}>
-                <Text style={styles.montoLabel}>Total</Text>
-                <Text style={styles.monto}>{formatCurrency(total)}</Text>
-              </View>
-            </View>
-
-            {/* Lista de medicamentos con precio a la derecha */}
-            <View style={styles.medicamentosContainer}>
-              <Text style={styles.medicamentosTitle}>Medicamentos ofrecidos:</Text>
-
-              {rows.map((r, idx) => (
-                <View key={idx} style={styles.medicamentoRow}>
-                  <Text style={styles.medicamentoName} numberOfLines={1}>
-                    {r.medicamento}
-                  </Text>
-                  <Text style={styles.medicamentoPrecio}>
-                    {formatCurrency(r.montoNum)}
-                  </Text>
+                <View style={styles.totalRow}>
+                  <Text style={styles.montoLabel}>Total</Text>
+                  <Text style={styles.monto}>{formatCurrency(total)}</Text>
                 </View>
-              ))}
-            </View>
+              </View>
 
-            <Text style={styles.text}>{fechaPedido}</Text>
-          </>
+              <View style={styles.medicamentosContainer}>
+                <Text style={styles.medicamentosTitle}>Medicamentos ofrecidos:</Text>
+
+                {rows.map((r, idx) => (
+                  <View key={idx} style={styles.medicamentoRow}>
+                    <Text style={styles.medicamentoName} numberOfLines={1}>
+                      {r.medicamento}
+                    </Text>
+                    <Text style={styles.medicamentoPrecio}>
+                      {formatCurrency(r.montoNum)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              <Text style={styles.text}>{fechaPedido}</Text>
+            </>
             <TouchableOpacity
               style={[styles.confirmBtn, procesando && { opacity: 0.7 }]}
               onPress={confirmarEntrega}
@@ -514,7 +460,7 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
           </>
         )}
       </View>
-      {/* 4. MOSTRAMOS EL BOTÓN DE CANCELAR SI 'puedeCancelar' ES TRUE */}
+
       {puedeCancelar && (
         <TouchableOpacity
           style={[styles.cancelBtn, procesando && { opacity: 0.7 }]}
@@ -524,6 +470,7 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
           <Text style={styles.cancelText}>Cancelar Pedido</Text>
         </TouchableOpacity>
       )}
+
       <Modal
         visible={modalVisible}
         transparent={true}
@@ -619,11 +566,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     borderRadius: theme.borderRadius.md,
     borderWidth: 1,
-    borderColor: theme.colors.destructive, // Borde rojo
+    borderColor: theme.colors.destructive,
     alignItems: "center",
   },
   cancelText: {
-    color: theme.colors.destructive, // Texto rojo
+    color: theme.colors.destructive,
     fontWeight: "700",
     fontSize: 16,
   },
@@ -631,8 +578,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: theme.colors.primary,
   },
-
-  /* --- Estilos añadidos para mostrar la lista como en OfertaCard --- */
   medicamentosContainer: { marginBottom: theme.spacing.md },
   medicamentosTitle: {
     fontSize: theme.typography.fontSize.base,
@@ -674,5 +619,4 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.primary,
   },
-  /* --------------------------------------------------------------- */
 });
