@@ -1,11 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { View, ActivityIndicator, StyleSheet, Text, Alert } from "react-native";
+import {
+  View,
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  Alert,
+  FlatList,
+} from "react-native";
 import { theme } from "../styles/theme";
 import PedidoEnCursoCard from "../components/PedidoEnCursoCard";
 import { listenPedidosPorEstadoYFarmacia, listOfertasForPedido } from "../utils/firestoreService";
 import { ESTADOS_PEDIDO } from "../dbConfig";
 import { auth } from "../firebase";
 import { useAlert } from "../context/AlertContext";
+
 export default function PedidosEnCursoScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +74,7 @@ export default function PedidosEnCursoScreen() {
         setPedidos(pedidosEnriquecidos);
       } catch (error) {
         console.error("Error procesando pedidos combinados:", error);
-        if (mounted) showAlert("error", { message: "No se pudieron cargar los pedidos en curso." });;
+        if (mounted) showAlert("error", { message: "No se pudieron cargar los pedidos en curso." });
       } finally {
         if (mounted) setLoading(false);
       }
@@ -103,7 +111,7 @@ export default function PedidosEnCursoScreen() {
         } catch (e) { }
       });
     };
-  }, [farmaciaId]);
+  }, [farmaciaId, showAlert]);
 
   const handlePedidoEliminado = (pedidoId) => {
     // pedidos es [{ pedido, oferta }, ...]
@@ -118,23 +126,36 @@ export default function PedidosEnCursoScreen() {
     );
   }
 
+  const renderItem = ({ item }) => (
+    <PedidoEnCursoCard
+      key={item.pedido.id}
+      pedidoData={item.pedido}
+      oferta={item.oferta}
+      onPedidoEliminado={handlePedidoEliminado}
+    />
+  );
+
+  const listEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.noPedidoText}>No hay pedidos en curso.</Text>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Pedidos en Curso</Text>
-      {pedidos.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.noPedidoText}>No hay pedidos en curso.</Text>
-        </View>
-      ) : (
-        pedidos.map(({ pedido, oferta }) => (
-          <PedidoEnCursoCard
-            key={pedido.id}
-            pedidoData={pedido}
-            oferta={oferta}
-            onPedidoEliminado={handlePedidoEliminado}
-          />
-        ))
-      )}
+
+      <FlatList
+        data={pedidos}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.pedido?.id || Math.random().toString()}
+        contentContainerStyle={[
+          styles.listContainer,
+          pedidos.length === 0 && { flex: 1 }, // para centrar mensaje vacío
+        ]}
+        ListEmptyComponent={listEmpty}
+        showsVerticalScrollIndicator={false}
+      />
     </View>
   );
 }
@@ -158,6 +179,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingBottom: theme.spacing.xl,
+    paddingTop: theme.spacing.sm,
   },
   loaderContainer: {
     flex: 1,

@@ -153,7 +153,7 @@ export default function PedidoUsuarioCard({ pedido, oferta, ofertas, farmacia })
     if (!pedido?.id) return;
 
     try {
-      const ok = await confirm("confirm_entrega", { id: pedido.id, image: imagen });
+      const ok = await confirm("confirm_entrega");
       if (!ok) return;
 
       setProcesando(true);
