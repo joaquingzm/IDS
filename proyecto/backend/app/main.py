@@ -80,7 +80,7 @@ def extraerTexto(img):
     # convertir a la forma final (solo valores)
     corrected = {k: (v[1] if v else None) for k, v in best_by_cat.items()}
 
-    return corrected
+    return [corrected]
 
 
 if __name__ == "__main__":

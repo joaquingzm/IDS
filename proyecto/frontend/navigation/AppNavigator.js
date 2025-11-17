@@ -75,8 +75,8 @@ function MainTabs() {
     const currentUser = auth.currentUser;
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    const {pedidoExistente} = await checkPedidoExistente(currentUser.uid);
-    if (pedidoExistente){
+    const { pedidoExistente } = await checkPedidoExistente(currentUser.uid);
+    if (pedidoExistente) {
       showAlert("pedido_error", { message: "Ya tiene un pedido en curso. Espere a que finalice antes de cargar una nueva receta." });
       return
     }
@@ -95,9 +95,9 @@ function MainTabs() {
     setPhotoUri(urii);
 
     const ok = await confirm("confirmar_eliminar_pedido", { id: "Holaaaa", image: urii });
-    
-    if (!ok){
-      showAlert("pedido_error", { title: "Aviso",message: "Receta no cargada." });
+
+    if (!ok) {
+      showAlert("pedido_error", { title: "Aviso", message: "Receta no cargada." });
       return
     }
     // ENVIAR AL BACKEND
@@ -126,7 +126,7 @@ function MainTabs() {
       formDataOCR.append("file", blobOCR, `photo_${Date.now()}.jpg`);
 
       setEstadoCarga("Procesando receta ...");
-      const OCR_URL = "http://10.0.2.15:8000/ocr";
+      const OCR_URL = "http://192.168.100.89:8000/ocr";
       const ocrRes = await fetch(OCR_URL, {
         method: "POST",
         body: formDataOCR,
@@ -150,13 +150,13 @@ function MainTabs() {
       // continuar para intentar subir/crear pedido o terminar
     }
 
-      // 👇 2) Subir imagen a Cloudinary (usamos la función mejorada)
-      console.log("Subiendo imagen a Cloudinary...");
-      const imageUrl = await uploadImageToCloudinary(urii); // usa la función mejorada
-      console.log("Imagen subida con éxito:", imageUrl);
-      setEstadoCarga("Creando pedido ...");
-      
-    try{
+    // 👇 2) Subir imagen a Cloudinary (usamos la función mejorada)
+    console.log("Subiendo imagen a Cloudinary...");
+    const imageUrl = await uploadImageToCloudinary(urii); // usa la función mejorada
+    console.log("Imagen subida con éxito:", imageUrl);
+    setEstadoCarga("Creando pedido ...");
+
+    try {
       if (!currentUser) {
         setLoading(false);
         throw new Error();
@@ -200,54 +200,54 @@ function MainTabs() {
 
   return (<View style={styles.container}>
     <Tab.Navigator
-  screenOptions={({ route }) => ({
-    headerShown: false,
-    tabBarShowLabel: false,
-    tabBarActiveTintColor: theme.colors.primary,
-    tabBarInactiveTintColor: theme.colors.mutedForeground,
-    tabBarStyle: styles.tabBar,
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarShowLabel: false,
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.mutedForeground,
+        tabBarStyle: styles.tabBar,
 
-    tabBarIcon: ({ focused, color, size }) => {
-      if (route.name === "CameraPlaceholder") return null;
+        tabBarIcon: ({ focused, color, size }) => {
+          if (route.name === "CameraPlaceholder") return null;
 
-      let iconName;
-      if (route.name === "Home") {
-        iconName = focused ? "home" : "home-outline";
-      } else if (route.name === "Search") {
-        iconName = focused ? "search" : "search-outline";
-      } else if (route.name === "Oferts") {
-        iconName = focused ? "cube" : "cube-outline";
-      } else if (route.name === "Profile") {
-        iconName = focused ? "person" : "person-outline";
-      }
+          let iconName;
+          if (route.name === "Home") {
+            iconName = focused ? "home" : "home-outline";
+          } else if (route.name === "Search") {
+            iconName = focused ? "search" : "search-outline";
+          } else if (route.name === "Oferts") {
+            iconName = focused ? "cube" : "cube-outline";
+          } else if (route.name === "Profile") {
+            iconName = focused ? "person" : "person-outline";
+          }
 
-      const labels = {
-        Home: "Inicio",
-        Search: "Busqueda",
-        Oferts: "Pedidos",
-        Profile: "Perfil",
-      };
+          const labels = {
+            Home: "Inicio",
+            Search: "Busqueda",
+            Oferts: "Pedidos",
+            Profile: "Perfil",
+          };
 
-      return (
-        <View style={styles.tabItem}>
-          <Ionicons name={iconName} size={focused ? 30 : 24} color={color} />
-          <Text
-            style={[
-              styles.tabLabel,
-              {
-                color,
-                fontWeight: focused ? 700 : 400, // Texto más fuerte cuando está activo
-                 fontSize: focused ? 12 : 11,
-              },
-            ]}
-          >
-            {labels[route.name]}
-          </Text>
-        </View>
-      );
-    },
-  })}
->
+          return (
+            <View style={styles.tabItem}>
+              <Ionicons name={iconName} size={focused ? 30 : 24} color={color} />
+              <Text
+                style={[
+                  styles.tabLabel,
+                  {
+                    color,
+                    fontWeight: focused ? 700 : 400, // Texto más fuerte cuando está activo
+                    fontSize: focused ? 12 : 11,
+                  },
+                ]}
+              >
+                {labels[route.name]}
+              </Text>
+            </View>
+          );
+        },
+      })}
+    >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen
@@ -307,28 +307,28 @@ export default function AppNavigator() {
 
 const styles = StyleSheet.create({
   tabBar: {
-  position: "absolute",
-  bottom: 0,
-  left: 0,
-  right: 0,
-  backgroundColor: theme.colors.card,
-  borderTopWidth: 1,
-  borderColor: theme.colors.border,
-  height: 80,
-  paddingBottom: 8,
-},
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: theme.colors.card,
+    borderTopWidth: 1,
+    borderColor: theme.colors.border,
+    height: 80,
+    paddingBottom: 8,
+  },
 
-tabItem: {
-  alignItems: "center",
-  justifyContent: "center",
-  width: 70,
-},
+  tabItem: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: 70,
+  },
 
-tabLabel: {
-  fontSize: 11,
-  marginTop: 3,
-  textAlign: "center",
-},
+  tabLabel: {
+    fontSize: 11,
+    marginTop: 3,
+    textAlign: "center",
+  },
   cameraButtonContainer: {
     top: -35,
     justifyContent: 'center',

@@ -19,8 +19,7 @@ def preprocess_image(img):
     # _, bin = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     img = cv2.cvtColor(blurred, cv2.COLOR_GRAY2BGR)
-    cv2.imshow("Original", img)
-    cv2.waitKey(0)
+   
     return img
 
 def extract_text_from_image(img):
