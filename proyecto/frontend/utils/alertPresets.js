@@ -104,19 +104,9 @@ campo_invalido: {
   confirm_entrega: {
     title: "¿Confirmar entrega?",
   },
-  // ...otros presets
 
-
-
-  // Podemos hacer alertas con botones de esta manera
-  confirmar_eliminar_pedido: {
-    type: "alert",
-    title: "¿Eliminar pedido #{{id}}?",
-    message: "Esta acción no se puede deshacer.",
-    actions: (params) => [
-      { title: "Cancelar", style: "cancel" },
-      { title: "Eliminar", style: "destructive", onPress: params.onConfirm },
-    ],
+  cancelar_pedido: {
+    title: "¿Cancelar pedido?",
   },
 
   confirmar_eliminar_pedido: {
